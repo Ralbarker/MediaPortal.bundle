@@ -1,15 +1,9 @@
-from base64 import encodestring
-from urllib import urlencode
+from mp import *
 
 TITLE = 'MediaPortal'
 ART = 'art-default.jpg'
 ICON = 'icon-default.png'
 ICON_PREFS = 'icon-prefs.png'
-
-BASE_URL = 'http://localhost:4322/MPExtended'
-CHANNELS_URL = BASE_URL + '/TVAccessService/json/GetChannelsDetailed'
-ACTIVESTREAMS_URL = BASE_URL + '/StreamingService/json/GetStreamingSessions'
-FINISHSTREAM_URL = BASE_URL + '/StreamingService/json/FinishStream'
 
 ####################################################################################################
 def Start():
@@ -39,43 +33,79 @@ def GetChannels():
 
 	oc = ObjectContainer()
 
-	channels = Request(CHANNELS_URL)
+	channels = mp.request_url(mp.channels_detailed)
 	for channel in channels:
 		if channel['VisibleInGuide'] == True:
-				oc.add(VideoClipObject(
-					url = "%s?id=%s&token=%s" % (BASE_URL, str(channel['Id']), Dict['token']),
+				oc.add(CreateStreamObject(
+					url = "%s?id=%s&token=%s" % (mp.base, str(channel['Id']), mp.token),
+					id = str(channel['Id']),
 					title = channel['Title']
 				))
 
 	return oc
 
 ####################################################################################################
-@route('/video/mediaportal/request')
-def Request(url, values = {}):
-
-	username = Prefs['username']
-	password = Prefs['password']
-
-	if (username != None) and (password != None):
-
-		if 'token' not in Dict:
-			Dict['token'] = encodestring("%s:%s" % (username, password))[:-1]
-
-		headers = {'Authorization': "Basic %s" % (Dict['token'])}
-		qs = urlencode(values)
-
-		return JSON.ObjectFromURL(url + '?' + qs, headers = headers, cacheTime = 0)
-
-	return {}
-
-####################################################################################################
 @route('/video/mediaportal/closestreams')
 def CloseStreams():
 
-	streams = Request(ACTIVESTREAMS_URL)
-	for s in streams:
-		data = Request(FINISHSTREAM_URL, values = {"identifier": s["Identifier"]})
-
+	close = mp.close_streams()
 	return MessageContainer("All streams have been closed", "Press OK to continue")
+
+####################################################################################################
+@route('/video/mediaportal/CreateStreamObject')
+def CreateStreamObject(url, id, title, include_container=False):
+
+	if Client.Platform in [ClientPlatform.Windows, ClientPlatform.MacOSX, ClientPlatform.Linux]:
+		profile = "Direct"
+	else:
+		profile = "HTTP Live Streaming HQ"
+
+	stream_obj = VideoClipObject(
+		key = Callback(CreateStreamObject, url=url, id=id, title=title, include_container=True),
+		rating_key = url,
+		title = title,
+		items = [
+			MediaObject(
+				parts = [PartObject(key=Callback(PlayStream, id=id, profile=profile))],
+				video_codec = VideoCodec.H264,
+				audio_codec = AudioCodec.AAC
+			)
+		]
+	)
+
+	if include_container:
+		return ObjectContainer(objects=[stream_obj])
+	else:
+		return stream_obj
+
+####################################################################################################
+@indirect
+@route('/video/mediaportal/playstream')
+def PlayStream(id, profile):
+
+	playlist_url = None
+	active = False
+
+	try:
+		sessions = mp.request_url(mp.streaming_sessions)
+		for s in sessions:
+			if id == str(s["Identifier"]) and profile == s["Profile"]:
+				active = True
+				break
+
+		if active == True:
+			playlist_url = mp.custom_transcoder_data % (id)
+
+		else:
+			init = mp.request_url(mp.init_stream, values = {"identifier": id, "itemId": id, "type": "12"})
+			start = mp.request_url(mp.start_stream, values = {"identifier": id, "profileName": profile})
+			playlist_url = start["Result"]
+
+		if profile == "Direct":
+			return IndirectResponse(VideoClipObject, key=playlist_url)
+		else:
+			return IndirectResponse(VideoClipObject, key=HTTPLiveStreamURL(url=playlist_url))
+	except:
+		raise Ex.MediaNotAvailable
 
 ####################################################################################################

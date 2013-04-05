@@ -11,5 +11,17 @@
         "label": "Password",
         "default": "",
         "option": "hidden"
+    },
+    {
+        "id": "address",
+        "type": "text",
+        "label": "Address",
+        "default": ""
+    },
+    {
+        "id": "port",
+        "type": "text",
+        "label": "Port",
+        "default": "4322"
     }
 ]
