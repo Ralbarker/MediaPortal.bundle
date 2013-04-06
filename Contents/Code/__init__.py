@@ -8,6 +8,7 @@ ICON_PREFS = 'icon-prefs.png'
 ####################################################################################################
 def Start():
 
+
 	ObjectContainer.title1 = TITLE
 	ObjectContainer.art = R(ART)
 	DirectoryObject.thumb = R(ICON)
@@ -20,6 +21,9 @@ def Start():
 ####################################################################################################
 @handler('/video/mediaportal', TITLE, art = ART, thumb = ICON)
 def MainMenu():
+
+	# Getting our transcoder profiles based on our client
+	mp.set_transcoder_profiles(Client.Platform)
 
 	oc = ObjectContainer()
 	oc.add(DirectoryObject(key = Callback(GetChannels), title = 'Channels'))
@@ -36,12 +40,10 @@ def GetChannels():
 	channels = mp.request_url(mp.channels_detailed)
 	for channel in channels:
 		if channel['VisibleInGuide'] == True:
-				oc.add(CreateStreamObject(
-					url = "%s?id=%s&token=%s" % (mp.base, str(channel['Id']), mp.token),
-					id = str(channel['Id']),
+				oc.add(DirectoryObject(
+					key = Callback(GetChannelSubMenu, id=str(channel['Id'])),
 					title = channel['Title']
 				))
-
 	return oc
 
 ####################################################################################################
@@ -52,23 +54,40 @@ def CloseStreams():
 	return MessageContainer("All streams have been closed", "Press OK to continue")
 
 ####################################################################################################
+@route('/video/mediaportal/getchannelsubmenu')
+def GetChannelSubMenu(id):
+
+	oc = ObjectContainer()
+
+	for key, val in mp.profiles.iteritems():
+		oc.add(CreateStreamObject(
+			id = id,
+			title = mp.friendly_name(key),
+			profile = key,
+			index = val['index']
+		))
+		oc.objects.sort(key=lambda obj: obj.rating_key)
+	return oc
+
+####################################################################################################
 @route('/video/mediaportal/CreateStreamObject')
-def CreateStreamObject(url, id, title, include_container=False):
+def CreateStreamObject(id, title, profile, index, include_container=False):
 
-	if Client.Platform in [ClientPlatform.Windows, ClientPlatform.MacOSX, ClientPlatform.Linux]:
-		profile = "Direct"
-	else:
-		profile = "HTTP Live Streaming HQ"
-
+	data = mp.profiles[profile]
 	stream_obj = VideoClipObject(
-		key = Callback(CreateStreamObject, url=url, id=id, title=title, include_container=True),
-		rating_key = url,
+		key = Callback(CreateStreamObject, id=id, title=title, profile=profile, index=index, include_container=True),
+		rating_key = index,
 		title = title,
 		items = [
 			MediaObject(
 				parts = [PartObject(key=Callback(PlayStream, id=id, profile=profile))],
-				video_codec = VideoCodec.H264,
-				audio_codec = AudioCodec.AAC
+				height = data['height'],
+				width = data['width'],
+				protocol = data['protocol'],
+				container = data['container'],
+				video_codec = data['video_codec'],
+				audio_codec = data['audio_codec'],
+				audio_channels = data['audio_channels']
 			)
 		]
 	)
@@ -101,10 +120,10 @@ def PlayStream(id, profile):
 			start = mp.request_url(mp.start_stream, values = {"identifier": id, "profileName": profile})
 			playlist_url = start["Result"]
 
-		if profile == "Direct":
-			return IndirectResponse(VideoClipObject, key=playlist_url)
-		else:
+		if profile.startswith('HTTP Live'):
 			return IndirectResponse(VideoClipObject, key=HTTPLiveStreamURL(url=playlist_url))
+		else:
+			return IndirectResponse(VideoClipObject, key=playlist_url)
 	except:
 		raise Ex.MediaNotAvailable
 

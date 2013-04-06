@@ -10,6 +10,7 @@ class MediaPortal:
 	username = None
 	password = None
 	token = None
+	profiles = {}
 
 ####################################### REST URLs ###########################################
 
@@ -20,10 +21,12 @@ class MediaPortal:
 	start_stream = None
 	custom_transcoder_data = None
 	streaming_sessions = None
+	client = None
 
 ####################################### Class Methods #######################################
 
 	def __init__(self):
+
 		self.ip = Prefs['address']
 		self.port = Prefs['port']
 		self.username = Prefs['username']
@@ -36,6 +39,7 @@ class MediaPortal:
 		self.start_stream = self.base + "/StreamingService/json/StartStream"
 		self.custom_transcoder_data = self.base + "/StreamingService/stream/CustomTranscoderData?identifier=%s&action=playlist&parameters=index.m3u8"
 		self.streaming_sessions = self.base + "/StreamingService/json/GetStreamingSessions"
+		self.transcoder_profiles = self.base + "/StreamingService/json/GetTranscoderProfiles"
 
 	def request_url(self, url, values = None):
 		qs = ''
@@ -49,6 +53,73 @@ class MediaPortal:
 		for s in streams:
 			data = self.request_url(self.finish_stream, values = {"identifier": s["Identifier"]})
 		return True
+
+	def set_transcoder_profiles(self, platform):
+		targets = self.active_targets(platform)
+		all_profiles = self.request_url(self.transcoder_profiles)
+		for idx, p in enumerate(all_profiles):
+			for t in p['Targets']:
+				if t in targets:
+					current = {
+						"index": idx,
+						"height": p['MaxOutputHeight'],
+						"width": p['MaxOutputWidth'],
+						"video_codec": 'h264',
+						"audio_codec": 'aac',
+						"audio_channels": 6,
+						"container": 'mp4'
+					}
+					if p['Transport'] == 'httplive':
+						current['protocol'] = 'hls'
+					else:
+						current['protocol'] = 'http'
+
+					self.profiles[p['Name']] = current
+					break;
+
+		return True
+
+	def active_targets(self, p):
+	    return {
+	        'Roku': ['mobile-hls-video'],
+	        'Android': ['mobile-hls-video'],
+	        'iOS': ['mobile-hls-video'],
+	        'Windows': ['pc-vlc-video'],
+	        'MacOSX': ['pc-vlc-video'],
+	        'Linux': ['pc-vlc-video'],
+	        'Chrome': ['pc-flash-video'],
+	        'Safari': ['pc-flash-video'],
+	        'Firefox': ['pc-flash-video']
+        }.get(p, ['mobile-hls-video'])
+
+	def friendly_name(self, t):
+		return {
+			'Direct'						: 'Direct Stream',
+			'Android FFmpeg HD'				: 'HD',
+			'Android FFmpeg ultra HQ'		: 'Ultra High',
+			'Android FFmpeg HQ'				: 'High',
+			'Android FFmpeg medium'			: 'Medium',
+			'Android FFmpeg LQ'				: 'Low',
+			'Android FFmpeg ultra LQ'		: 'Ultra Low',
+			'Android VLC direct'			: 'VLC Direct Stream',
+			'Android VLC HD'				: 'VLC HD',
+			'Android VLC ultra HQ'			: 'VLC Ultra High',
+			'Android VLC HQ'				: 'VLC High',
+			'Android VLC medium'			: 'VLC Medium',
+			'Android VLC LQ'				: 'VLC Low',
+			'Android VLC ultra LQ'			: 'VLC Ultra Low',
+			'HTTP Live Streaming HD'		: 'HD',
+			'HTTP Live Streaming ultra HQ'	: 'Ultra High',
+			'HTTP Live Streaming HQ'		: 'High',
+			'HTTP Live Streaming medium'	: 'Medium',
+			'HTTP Live Streaming LQ'		: 'Low',
+			'HTTP Live Streaming ultra LQ'	: 'Ultra Low',
+			'Flash HD'						: 'HD',
+			'Flash HQ'						: 'High',
+			'Flash medium'					: 'Medium',
+			'Flash LQ' 						: 'Low',
+			'Flash Ultra LQ'				: 'Ultra Low'
+		}[t]
 
 ####################################### END #################################################
 
