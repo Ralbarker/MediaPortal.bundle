@@ -56,10 +56,14 @@ class MediaPortal:
 
 	def set_transcoder_profiles(self, platform):
 		targets = self.active_targets(platform)
-		all_profiles = self.request_url(self.transcoder_profiles)
-		for idx, p in enumerate(all_profiles):
+		group_profiles = self.request_url(self.transcoder_profiles)
+		for idx, p in enumerate(group_profiles):
+
+			#checking this once instead of each time thru the inner loop
+			add_single = p['Name'] in targets['single']
+
 			for t in p['Targets']:
-				if t in targets:
+				if t in targets['group'] or add_single:
 					current = {
 						"index": idx,
 						"height": p['MaxOutputHeight'],
@@ -81,16 +85,13 @@ class MediaPortal:
 
 	def active_targets(self, p):
 	    return {
-	        'Roku': ['mobile-hls-video'],
-	        'Android': ['mobile-hls-video'],
-	        'iOS': ['mobile-hls-video'],
-	        'Windows': ['pc-vlc-video'],
-	        'MacOSX': ['pc-vlc-video'],
-	        'Linux': ['pc-vlc-video'],
-	        'Chrome': ['pc-flash-video'],
-	        'Safari': ['pc-flash-video'],
-	        'Firefox': ['pc-flash-video']
-        }.get(p, ['mobile-hls-video'])
+	        'Roku'		: {'group': ['mobile-hls-video'], 	'single': []},
+	        'Android'	: {'group': ['mobile-hls-video'], 	'single': []},
+	        'iOS'		: {'group': ['mobile-hls-video'], 	'single': []},
+	        'Windows'	: {'group': ['pc-vlc-video'], 		'single': ['Android VLC direct']},
+	        'MacOSX'	: {'group': ['pc-vlc-video'], 		'single': ['Android VLC direct']},
+	        'Linux'		: {'group': ['pc-vlc-video'], 		'single': ['Android VLC direct']}
+        }.get(p, {'group': ['mobile-hls-video'], 'single': []})
 
 	def friendly_name(self, t):
 		return {
