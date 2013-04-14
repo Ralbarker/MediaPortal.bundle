@@ -8,7 +8,6 @@ ICON_PREFS = 'icon-prefs.png'
 ####################################################################################################
 def Start():
 
-
 	ObjectContainer.title1 = TITLE
 	ObjectContainer.art = R(ART)
 	DirectoryObject.thumb = R(ICON)
@@ -18,16 +17,19 @@ def Start():
   	MessageContainer.thumb = R(ICON)
   	MessageContainer.art = R(ART)
 
+
 ####################################################################################################
 @handler('/video/mediaportal', TITLE, art = ART, thumb = ICON)
 def MainMenu():
 
-	# Getting our transcoder profiles based on our client
-	mp.set_transcoder_profiles(Client.Platform)
-
+	mp.setupUser()
 	oc = ObjectContainer()
-	oc.add(DirectoryObject(key = Callback(GetChannels), title = 'Channels'))
-	oc.add(DirectoryObject(key = Callback(CloseStreams), title = 'Close Streams'))
+
+	if mp.isLoggedIn():
+		mp.set_transcoder_profiles(Client.Platform)
+		oc.add(DirectoryObject(key = Callback(GetChannels), title = 'Channels'))
+		oc.add(DirectoryObject(key = Callback(CloseStreams), title = 'Close Streams'))
+
 	oc.add(PrefsObject(title = 'Preferences', thumb = R(ICON_PREFS)))
 	return oc
 

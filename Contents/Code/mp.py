@@ -25,8 +25,7 @@ class MediaPortal:
 
 ####################################### Class Methods #######################################
 
-	def __init__(self):
-
+	def setupUser(self):
 		self.ip = Prefs['address']
 		self.port = Prefs['port']
 		self.username = Prefs['username']
@@ -40,6 +39,12 @@ class MediaPortal:
 		self.custom_transcoder_data = self.base + "/StreamingService/stream/CustomTranscoderData?identifier=%s&action=playlist&parameters=index.m3u8"
 		self.streaming_sessions = self.base + "/StreamingService/json/GetStreamingSessions"
 		self.transcoder_profiles = self.base + "/StreamingService/json/GetTranscoderProfiles"
+
+	def isLoggedIn(self):
+		if self.ip != None and self.port != None and self.username != None and self.password != None:
+			return True
+		else:
+			return False
 
 	def request_url(self, url, values = None):
 		qs = ''
@@ -59,11 +64,8 @@ class MediaPortal:
 		group_profiles = self.request_url(self.transcoder_profiles)
 		for idx, p in enumerate(group_profiles):
 
-			#checking this once instead of each time thru the inner loop
-			add_single = p['Name'] in targets['single']
-
 			for t in p['Targets']:
-				if t in targets['group'] or add_single:
+				if t in targets:
 					current = {
 						"index": idx,
 						"height": p['MaxOutputHeight'],
@@ -79,19 +81,15 @@ class MediaPortal:
 						current['protocol'] = 'http'
 
 					self.profiles[p['Name']] = current
-					break;
-
+					break
 		return True
 
 	def active_targets(self, p):
-	    return {
-	        'Roku'		: {'group': ['mobile-hls-video'], 	'single': []},
-	        'Android'	: {'group': ['mobile-hls-video'], 	'single': []},
-	        'iOS'		: {'group': ['mobile-hls-video'], 	'single': []},
-	        'Windows'	: {'group': ['pc-vlc-video'], 		'single': ['Android VLC direct']},
-	        'MacOSX'	: {'group': ['pc-vlc-video'], 		'single': ['Android VLC direct']},
-	        'Linux'		: {'group': ['pc-vlc-video'], 		'single': ['Android VLC direct']}
-        }.get(p, {'group': ['mobile-hls-video'], 'single': []})
+		if p == "Windows":
+			return ['pc-vlc-video']
+		else:
+			return ['mobile-hls-video']
+
 
 	def friendly_name(self, t):
 		return {
