@@ -1,0 +1,147 @@
+from urllib import urlencode
+from urlparse import parse_qs
+
+####################################################################################################
+def MetadataObjectForURL(url):
+
+    return VideoClipObject(
+        title = "MediaPortal"
+    )
+
+####################################################################################################
+def MediaObjectsForURL(url):
+
+	profile = MediaPortal.get_profile(url)
+
+	if profile == "HTTP Live Streaming HD":
+		return [
+				MediaObject(
+				parts = [PartObject(key=HTTPLiveStreamURL(Callback(PlayVideo, url=url, profile="HTTP Live Streaming HD", bandwidth="2024000", width="1280", height="720")))]
+				,height = 720
+				,width = 1280
+			)
+		]
+	elif profile == "HTTP Live Streaming ultra HQ":
+		return [
+			MediaObject(
+				parts = [PartObject(key=HTTPLiveStreamURL(Callback(PlayVideo, url=url, profile="HTTP Live Streaming ultra HQ", bandwidth="1280000", width="960", height="640")))]
+				,height = 640
+				,width = 960
+			)
+		]
+	elif profile == "HTTP Live Streaming HQ":
+		return [
+			MediaObject(
+				parts = [PartObject(key=HTTPLiveStreamURL(Callback(PlayVideo, url=url, profile="HTTP Live Streaming HQ", bandwidth="896000", width="800", height="480")))]
+				,height = 480
+				,width = 800
+			)
+		]
+	elif profile == "HTTP Live Streaming medium":
+		return [
+			MediaObject(
+				parts = [PartObject(key=HTTPLiveStreamURL(Callback(PlayVideo, url=url, profile="HTTP Live Streaming medium", bandwidth="640000", width="600", height="480")))]
+				,height = 480
+				,width = 600
+			)
+		]
+	elif profile == "HTTP Live Streaming LQ":
+		return [
+			MediaObject(
+				parts = [PartObject(key=HTTPLiveStreamURL(Callback(PlayVideo, url=url, profile="HTTP Live Streaming LQ", bandwidth="320000", width="480", height="320")))]
+				,height = 320
+				,width = 480
+			)
+		]
+	elif profile == "HTTP Live Streaming ultra LQ":
+		return [
+			MediaObject(
+				parts = [PartObject(key=HTTPLiveStreamURL(Callback(PlayVideo, url=url, profile="HTTP Live Streaming ultra LQ", bandwidth="176000", width="480", height="320")))]
+				,height = 320
+				,width = 480
+			)
+		]
+	elif profile == "Direct":
+		return [
+			MediaObject(
+				parts = [PartObject(key=Callback(PlayVideo, url=url, profile="Direct"))],
+				platforms = ["Windows"],
+				height = 720,
+				width = 1280,
+				container = "mp4",
+				protocol = "http",
+				video_codec = "h264",
+				audio_codec = "aac",
+				audio_channels = 6
+			)
+		]
+	else:
+		return []
+
+####################################################################################################
+def PlayVideo(url, profile, bandwidth=None, width=None, height=None):
+
+	mp = MediaPortal(url, profile)
+
+	try:
+		close = mp.close_streams()
+		init = mp.request_url(mp.init_stream, values = {"identifier": mp.id, "itemId": mp.id, "type": "12"})
+		start = mp.request_url(mp.start_stream, values = {"identifier": mp.id, "profileName": mp.profile})
+		playlist_url = start["Result"]
+
+		if profile == "Direct":
+			return Redirect(playlist_url)
+		else:
+			return "#EXTM3U\n#EXT-X-STREAM-INF:PROGRAM-ID=" + mp.id + ",BANDWIDTH=" + bandwidth + ",RESOLUTION=" + width + 'x' + height + "\n" + playlist_url
+
+	except Exception, e:
+		Log(e)
+		raise Ex.MediaNotAvailable
+
+####################################################################################################
+class MediaPortal:
+
+	ip = None
+	port = None
+	token = None
+	id = None
+	profile = None
+	base = None
+	init_stream = None
+	start_stream = None
+	streaming_sessions = None
+
+	def __init__(self, url, profile):
+		self.process_url(url)
+		self.profile = profile.replace("+", " ")
+		self.base = "http://%s:%s/MPExtended" % (self.ip, self.port)
+		self.init_stream = self.base + "/StreamingService/json/InitStream"
+		self.start_stream = self.base + "/StreamingService/json/StartStream"
+		self.finish_stream = self.base + "/StreamingService/json/FinishStream"
+		self.streaming_sessions = self.base + "/StreamingService/json/GetStreamingSessions"
+
+	def request_url(self, url, values = None):
+		HTTP.Headers['Cache-Control'] = 'no-cache'
+		qs = ''
+		if values != None:
+			qs = '?' + urlencode(values)
+		headers = {'Authorization': "Basic %s" % (self.token)}
+		return JSON.ObjectFromString(HTTP.Request(url + qs, headers=headers).content)
+
+	def close_streams(self):
+		streams = self.request_url(self.streaming_sessions)
+		for s in streams:
+			data = self.request_url(self.finish_stream, values = {"identifier": s["Identifier"]})
+		return True
+
+	def process_url(self, url):
+		host = url.split(":")
+		qs = url.split("?")[1].split("&")
+		self.ip = host[0]
+		self.port = host[1].split("/")[0]
+		self.token = qs[0].split("=")[1]
+		self.id = qs[1].split("=")[1]
+
+	@staticmethod
+	def get_profile(url):
+		return parse_qs(url.split("?")[1])["profile"][0]
