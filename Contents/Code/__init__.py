@@ -1,84 +1,112 @@
-from mp import *
 
-TITLE = 'MediaPortal'
-ART = 'art-default.jpg'
-ICON = 'icon-default.png'
-ICON_PREFS = 'icon-prefs.png'
-SERVICE_URL = "%s:%s/video/mediaportal/playstream?token=%s&id=%s&profile=%s"
+TITLE 				= 'MediaPortal'
+ART_DEFAULT 	= 'art-default.jpg'
+ICON_DEFAULT 	= 'icon-default.png'
+ICON_PREFS 		= 'icon-prefs.png'
 
 ####################################################################################################
+
+def ServiceRequest(url, id=None):
+	mp_url = 'mediaportal://%s' % url
+	if id:
+		mp_url = 'mediaportal://%s/%s' % (url, id)
+
+	return JSON.ObjectFromString(String.Decode(URLService.NormalizeURL(mp_url)))
+
+def isConnected():
+	status = ServiceRequest('status')
+	if status:
+		return status['HasConnectionToTVServer']
+	else:
+		return False
+
+####################################################################################################
+
 def Start():
+	HTTP.CacheTime = 0
+	HTTP.Headers['Cache-Control'] = 'no-cache'
 
 	ObjectContainer.title1 = TITLE
-	ObjectContainer.art = R(ART)
-	DirectoryObject.thumb = R(ICON)
-	DirectoryObject.art = R(ART)
-	VideoClipObject.thumb = R(ICON)
-  	VideoClipObject.art = R(ART)
-  	MessageContainer.thumb = R(ICON)
-  	MessageContainer.art = R(ART)
-  	PopupDirectoryObject.thumb = R(ICON)
-  	PopupDirectoryObject.art = R(ART)
+	ObjectContainer.art = R(ART_DEFAULT)
 
-####################################################################################################
-@handler('/video/mediaportal', TITLE, art = ART, thumb = ICON)
+	DirectoryObject.thumb = R(ICON_DEFAULT)
+	DirectoryObject.art = R(ART_DEFAULT)
+
+	VideoClipObject.thumb = R(ICON_DEFAULT)
+	VideoClipObject.art = R(ART_DEFAULT)
+
+@handler('/video/mediaportal', TITLE, art=ART_DEFAULT, thumb=ICON_DEFAULT)
 def MainMenu():
+	connected = isConnected()
 
-	mp.setupUser()
-	oc = ObjectContainer()
+	if connected:
+		title = "MediaPortal"
+	else:
+		title = "MediaPortal [offline]"
 
-	if mp.isLoggedIn():
-		oc.add(DirectoryObject(key = Callback(GetChannels), title = 'Channels'))
-		oc.add(DirectoryObject(key = Callback(CloseStreams), title = 'Close Streams'))
+	oc = ObjectContainer(title2="MediaPortal")
 
-	oc.add(PopupDirectoryObject(key = Callback(QualitiesMenu), title = 'Set Default Quality'))
+	if connected:
+		#oc.add(DirectoryObject(key = Callback(GetEPG), title = 'EPG'))
+		oc.add(DirectoryObject(key = Callback(GetGroups), title='Channels'))
+		oc.add(DirectoryObject(key = Callback(GetSchedules), title='Schedules'))
+		oc.add(DirectoryObject(key = Callback(GetRecordings), title='Recordings'))
+
 	oc.add(PrefsObject(title = 'Preferences', thumb = R(ICON_PREFS)))
+
 	return oc
 
-####################################################################################################
+@route('/video/mediaportal/getgroups')
+def GetGroups():
+	oc = ObjectContainer(title2='Groups')
+
+	groups = ServiceRequest('groups')
+	for group in groups:
+		oc.add(DirectoryObject(key = Callback(GetChannels, title=group['GroupName'], id=group['Id']), title=group['GroupName']))
+
+	return oc
+
+@route('/video/mediaportal/getschedules')
+def GetSchedules():
+	oc = ObjectContainer(title2='Schedules')
+
+	schedules = ServiceRequest('schedules')
+	for schedule in schedules:
+		oc.add(DirectoryObject(key = Callback(DeleteSchedules, title=schedule['Title'], id=schedule['Id']), title=schedule['Title']))
+
+	return oc
+
+@route('/video/mediaportal/getrecordings')
+def GetRecordings():
+	oc = ObjectContainer(title2='Recordings')
+
+	recordings = ServiceRequest('recordings')
+	for recording in recordings:
+		vo = URLService.MetadataObjectForURL('mediaportal://show/%s/%s' % ('13', recording['Id']))
+		oc.add(vo)
+
+	return oc
+
 @route('/video/mediaportal/getchannels')
-def GetChannels():
+def GetChannels(title, id):
+	oc = ObjectContainer(title2=title)
 
-	oc = ObjectContainer()
-
-	channels = mp.request_url(mp.channels_detailed)
+	channels = ServiceRequest('channels', id)
 	for channel in channels:
-		if channel['VisibleInGuide'] == True:
-				oc.add(VideoClipObject(
-					url = SERVICE_URL % (mp.ip, mp.port, mp.token, str(channel['Id']), Data.Load("Profile")),
-					title = channel['Title']
-				))
-	return oc
-
-####################################################################################################
-@route('/video/mediaportal/qualitiesmenu')
-def QualitiesMenu():
-
-	oc = ObjectContainer()
-
-	for idx, profile in enumerate(mp.profiles):
-		if idx == 0 and Client.Platform != "Windows":
-			continue
-
-		oc.add(DirectoryObject(
-			key = Callback(SetQuality, quality=profile[1], friendly_name=profile[0]),
-			title = profile[0]
-		))
+		vo = URLService.MetadataObjectForURL('mediaportal://show/%s/%s' % ('12', channel['Id']))
+		oc.add(vo)
 
 	return oc
 
-####################################################################################################
-@route('/video/mediaportal/setquality')
-def SetQuality(quality, friendly_name):
+@route('/video/mediaportal/deleteschedules')
+def DeleteSchedules(title, id):
+	oc = ObjectContainer(title2='Delete ' + title)
+	oc.add(DirectoryObject(key = Callback(DeleteSchedule, id=id), title='Delete'))
+	return oc
 
-	Data.Save("Profile", quality)
-	return MessageContainer("The default quality has been set to " + friendly_name, "Press OK to continue")
-
-####################################################################################################
-@route('/video/mediaportal/closestreams')
-def CloseStreams():
-
-	close = mp.close_streams()
-	return MessageContainer("All streams have been closed", "Press OK to continue")
+@route('/video/mediaportal/deleteschedule')
+def DeleteSchedule(id):
+	ServiceRequest('delete_schedule', id)
+	return MessageContainer('Press OK to continue', 'Item Deleted')
 
 ####################################################################################################

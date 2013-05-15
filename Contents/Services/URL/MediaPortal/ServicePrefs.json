@@ -13,9 +13,9 @@
         "option": "hidden"
     },
     {
-        "id": "address",
+        "id": "ip",
         "type": "text",
-        "label": "Address",
+        "label": "IP Address",
         "default": ""
     },
     {
@@ -23,5 +23,12 @@
         "type": "text",
         "label": "Port",
         "default": "4322"
+    },
+    {
+        "id": "profile",
+        "label": "Quality",
+        "type": "enum",
+        "values": ["Direct", "HTTP Live Streaming HD", "HTTP Live Streaming ultra HQ", "HTTP Live Streaming HQ", "HTTP Live Streaming medium", "HTTP Live Streaming LQ", "HTTP Live Streaming ultra LQ"],
+        "default": "HTTP Live Streaming medium"
     }
 ]
