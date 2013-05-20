@@ -32,8 +32,9 @@ def Request(url, values=None, stringify=True):
 		else:
 			return JSON.ObjectFromString(HTTP.Request(url + qs, headers=headers).content)
 
-	except:
-		return False
+	except Exception, e:
+		Log(e)
+		return {}
 
 def GetData(type_id, item_id):
 	data = {}
