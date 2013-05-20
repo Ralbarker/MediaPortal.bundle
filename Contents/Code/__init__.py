@@ -11,46 +11,46 @@ def ServiceRequest(url, id=None):
 	if id:
 		mp_url = 'mediaportal://%s/%s' % (url, id)
 
-	return JSON.ObjectFromString(String.Decode(URLService.NormalizeURL(mp_url)))
+	data = URLService.NormalizeURL(mp_url)
+	if data:
+		return JSON.ObjectFromString(String.Decode(data))
+	else:
+		return 
 
-def isConnected():
+def IsConnected():
 	status = ServiceRequest('status')
 	if status:
 		return status['HasConnectionToTVServer']
 	else:
 		return False
 
+def NoData():
+	return ""		
+
 ####################################################################################################
 
 def Start():
 	HTTP.CacheTime = 0
 	HTTP.Headers['Cache-Control'] = 'no-cache'
-
+	
 	ObjectContainer.title1 = TITLE
 	ObjectContainer.art = R(ART_DEFAULT)
-
 	DirectoryObject.thumb = R(ICON_DEFAULT)
 	DirectoryObject.art = R(ART_DEFAULT)
-
 	VideoClipObject.thumb = R(ICON_DEFAULT)
 	VideoClipObject.art = R(ART_DEFAULT)
 
 @handler('/video/mediaportal', TITLE, art=ART_DEFAULT, thumb=ICON_DEFAULT)
 def MainMenu():
-	connected = isConnected()
+	connected = IsConnected()
+	oc = ObjectContainer(title2='MediaPortal')
 
-	if connected:
-		title = "MediaPortal"
-	else:
-		title = "MediaPortal [offline]"
-
-	oc = ObjectContainer(title2="MediaPortal")
-
-	if connected:
-		#oc.add(DirectoryObject(key = Callback(GetEPG), title = 'EPG'))
+	if connected:		
 		oc.add(DirectoryObject(key = Callback(GetGroups), title='Channels'))
 		oc.add(DirectoryObject(key = Callback(GetSchedules), title='Schedules'))
 		oc.add(DirectoryObject(key = Callback(GetRecordings), title='Recordings'))
+	else:
+		oc.add(DirectoryObject(key = Callback(NoData), title='MediaPortal [OFFLINE]'))
 
 	oc.add(PrefsObject(title = 'Preferences', thumb = R(ICON_PREFS)))
 
