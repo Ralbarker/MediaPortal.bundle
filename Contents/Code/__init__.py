@@ -29,6 +29,9 @@ def NoData():
 
 ####################################################################################################
 
+def ValidatePrefs():
+  pass
+
 def Start():
 	HTTP.CacheTime = 0
 	HTTP.Headers['Cache-Control'] = 'no-cache'

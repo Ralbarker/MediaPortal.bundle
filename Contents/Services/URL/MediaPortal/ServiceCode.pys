@@ -1,6 +1,7 @@
 
 from base64 import encodestring
 from urllib import urlencode
+from time import sleep
 import re
 
 STATUS						=	'http://%s/MPExtended/TVAccessService/json/GetServiceDescription'
@@ -40,20 +41,51 @@ def GetData(type_id, item_id):
 
 	# Live TV
 	if int(type_id) == 12:
-		req 							= Request(CHANNELS_BY_ID, {'channelId': item_id}, stringify=False)
-		data['title']			=	req['Title'] + ' - ' + req['CurrentProgram']['Title']
-		data['summary']		= req['CurrentProgram']['Description']
-		data['duration']	= req['CurrentProgram']['DurationInMinutes'] * 60 * 1000
+		req = Request(CHANNELS_BY_ID, {'channelId': item_id}, stringify=False)				
+		
+		try:
+			data['title'] = req['Title'] + ' - ' + req['CurrentProgram']['Title']
+		except:
+			data['title'] = req['Title']
+
+ 		try:
+			data['summary'] = req['CurrentProgram']['Description'].strip(':- ')
+		except:
+			data['summary'] = ''
+
+		try:
+			data['duration'] = req['CurrentProgram']['DurationInMinutes'] * 60 * 1000
+		except:
+			data['duration'] = 0
 
 	# Recordings
 	elif int(type_id) == 13:
-		req 							= Request(RECORDINGS_BY_ID, {'id': item_id}, stringify=False)
-		end = int(req['EndTime'].split('/Date(')[1].split('-')[0])
-		start = int(req['StartTime'].split('/Date(')[1].split('-')[0])
+		req = Request(RECORDINGS_BY_ID, {'id': item_id}, stringify=False)
+		
+		try:
+			end = int(req['EndTime'].split('/Date(')[1].split('-')[0])
+		except:
+			end = 0
+		
+		try:
+			start = int(req['StartTime'].split('/Date(')[1].split('-')[0])
+		except:
+			start = 0
 
-		data['title'] 		=	req['ChannelName'] + ' - ' + req['Title']
-		data['summary'] 	= req['Description']
-		data['duration'] = int(end - start)
+		try:
+			data['title'] =	req['ChannelName'] + ' - ' + req['Title']
+		except:
+			data['title'] = ''
+		
+		try:
+			data['summary'] = req['Description'].strip(':- ')
+		except:
+			data['summary'] = ''
+		
+		try:
+			data['duration'] = int(end - start)
+		except:
+			data['duration'] = 0
 
 	return data
 
@@ -92,7 +124,7 @@ def MetadataObjectForURL(url):
 		type_id, item_id = match.groups()
 		data = GetData(type_id, item_id)
 
-		return MovieObject(
+		return VideoClipObject(
 				title     = data['title'],
 				summary   = data['summary'],
 				duration  = data['duration'],
@@ -105,42 +137,49 @@ def MediaObjectsForURL(url):
 	if match:
 		type_id, item_id = match.groups()
 
-	if Client.Platform in [ClientPlatform.Windows] or type_id == 13:
+	if Prefs['profile'] == "Direct":
 			return [MediaObject(
-				parts = [PartObject(key=Callback(PlayVideo, type=type_id, id=item_id))],
-				height = 720,
-				width = 1280,
-				container = "mp4",
-				video_codec = "h264",
-				audio_codec = "aac"
+				parts = [PartObject(key=Callback(PlayVideo, type=type_id, id=item_id))]				
 			)]
 	else:
 		return [
 			MediaObject(
-				protocols = ['hls', 'http-live-streaming', 'http-mp4-streaming'],
-				parts = [PartObject(key=HTTPLiveStreamURL(Callback(PlayVideo, type=type_id, id=item_id)))]
+				parts	= [PartObject(key=HTTPLiveStreamURL(Callback(PlayVideo, type=type_id, id=item_id)))]
 			)
 		]
 
 def PlayVideo(type, id):
 	try:
 		profile = Prefs['profile']
-		close = CloseStreams()
-		init = Request(STREAM_INIT, values = {"identifier": id, "itemId": id, "type": type})
-		start = Request(STREAM_START, values = {"identifier": id, "profileName": profile}, stringify=False)
-		playlist_url = start["Result"]
+		close 	= CloseStreams()
+		
+		try:
+			init = Request(STREAM_INIT, values = {"identifier": id, "itemId": id, "type": type})
+		except:
+			time.sleep(2)
+			init = Request(STREAM_INIT, values = {"identifier": id, "itemId": id, "type": type})
 
-		if profile == "Direct":
+		try:
+			start = Request(STREAM_START, values = {"identifier": id, "profileName": profile}, stringify=False)			
+		except:
+			time.sleep(2)
+			start = Request(STREAM_START, values = {"identifier": id, "profileName": profile}, stringify=False)
+
+		playlist_url = start["Result"]	
+
+		if profile == "Direct":			
 			return Redirect(playlist_url)
 		else:
 			return "#EXTM3U\n#EXT-X-STREAM-INF:PROGRAM-ID=" + id + ",BANDWIDTH=2200000\n" + playlist_url
 
-	except Exception, e:
-		Log(e)
+	except:
 		raise Ex.MediaNotAvailable
 
 def CloseStreams():
 		streams = Request(SESSIONS, stringify=False)
 		for s in streams:
-			data = Request(STREAM_CLOSE, values = {"identifier": s["Identifier"]})
+			try:
+				data = Request(STREAM_CLOSE, values = {"identifier": s["Identifier"]})
+			except:
+				raise Ex.MediaNotAvailable
 		return True
