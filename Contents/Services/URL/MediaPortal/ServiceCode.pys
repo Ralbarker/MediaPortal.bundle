@@ -4,29 +4,35 @@ from urllib import urlencode
 from time import sleep
 import re
 
-STATUS						=	'http://%s/MPExtended/TVAccessService/json/GetServiceDescription'
-CHANNELS 					= 'http://%s/MPExtended/TVAccessService/json/GetChannelsDetailed'
+STATUS				= 'http://%s/MPExtended/TVAccessService/json/GetServiceDescription'
+CHANNELS 			= 'http://%s/MPExtended/TVAccessService/json/GetChannelsDetailed'
 CHANNELS_BY_ID		= 'http://%s/MPExtended/TVAccessService/json/GetChannelDetailedById'
-GROUPS 						= 'http://%s/MPExtended/TVAccessService/json/GetGroups'
-RECORDINGS 				= 'http://%s/MPExtended/TVAccessService/json/GetRecordings'
+GROUPS 				= 'http://%s/MPExtended/TVAccessService/json/GetGroups'
+RECORDINGS 			= 'http://%s/MPExtended/TVAccessService/json/GetRecordings'
 RECORDINGS_BY_ID	= 'http://%s/MPExtended/TVAccessService/json/GetRecordingById'
-SCHEDULES 				= 'http://%s/MPExtended/TVAccessService/json/GetSchedules'
+SCHEDULES 			= 'http://%s/MPExtended/TVAccessService/json/GetSchedules'
 DELETE_SCHEDULE		= 'http://%s/MPExtended/TVAccessService/json/DeleteSchedule'
-SESSIONS 					= 'http://%s/MPExtended/StreamingService/json/GetStreamingSessions'
-STREAM_INIT				= 'http://%s/MPExtended/StreamingService/json/InitStream'
-STREAM_START			= 'http://%s/MPExtended/StreamingService/json/StartStream'
-STREAM_CLOSE			= 'http://%s/MPExtended/StreamingService/json/FinishStream'
+SESSIONS 			= 'http://%s/MPExtended/StreamingService/json/GetStreamingSessions'
+STREAM_INIT			= 'http://%s/MPExtended/StreamingService/json/InitStream'
+STREAM_START		= 'http://%s/MPExtended/StreamingService/json/StartStream'
+STREAM_CLOSE		= 'http://%s/MPExtended/StreamingService/json/FinishStream'
+
+def GetProfile():
+	if Client.Platform in [ClientPlatform.MacOSX, ClientPlatform.Windows]:
+		return Prefs['desktop_profile']
+	else:
+		return Prefs['non_desktop_profile']
 
 def Request(url, values=None, stringify=True):
 	try:
 		username 	= Prefs['username']
 		password 	= Prefs['password']
-		ip 				= Prefs['ip']
-		port 			= Prefs['port']
-		url 			= url % (ip + ":" + port)
+		ip 			= Prefs['ip']
+		port 		= Prefs['port']
+		url 		= url % (ip + ":" + port)
 		token 		= encodestring("%s:%s" % (username, password))[:-1]
 		headers 	= {'Authorization': "Basic %s" % (token)}
-		qs 				= '?' + urlencode(values) if values != None else ''
+		qs 			= '?' + urlencode(values) if values != None else ''
 
 		if stringify:
 			return HTTP.Request(url + qs, headers=headers).content
@@ -125,32 +131,32 @@ def MetadataObjectForURL(url):
 		data = GetData(type_id, item_id)
 
 		return VideoClipObject(
-				title     = data['title'],
-				summary   = data['summary'],
-				duration  = data['duration'],
-				url       = url
+			title     = data['title'],
+			summary   = data['summary'],
+			duration  = data['duration'],
+			url       = url
 		)
 	pass
 
 def MediaObjectsForURL(url):
+	profile = GetProfile()
 	match = re.match(r'mediaportal://show/([^/]+)/([^/]+)', url)
 	if match:
 		type_id, item_id = match.groups()
 
-	if Prefs['profile'] == "Direct":
-			return [MediaObject(
-				parts = [PartObject(key=Callback(PlayVideo, type=type_id, id=item_id))]				
-			)]
+	if profile == "Direct":
+		return [MediaObject(
+			parts = [PartObject(key=Callback(PlayVideo, type=type_id, id=item_id, profile=profile))]				
+		)]
 	else:
 		return [
 			MediaObject(
-				parts	= [PartObject(key=HTTPLiveStreamURL(Callback(PlayVideo, type=type_id, id=item_id)))]
+				parts	= [PartObject(key=HTTPLiveStreamURL(Callback(PlayVideo, type=type_id, id=item_id, profile=profile)))]
 			)
 		]
 
-def PlayVideo(type, id):
+def PlayVideo(type, id, profile):
 	try:
-		profile = Prefs['profile']
 		close 	= CloseStreams()
 		
 		try:

@@ -24,9 +24,16 @@
         "label": "Port",
         "default": "4322"
     },
+	{
+        "id": "desktop_profile",
+        "label": "Desktop Quality",
+        "type": "enum",
+        "values": ["Direct", "HTTP Live Streaming HD", "HTTP Live Streaming ultra HQ", "HTTP Live Streaming HQ", "HTTP Live Streaming medium", "HTTP Live Streaming LQ", "HTTP Live Streaming ultra LQ"],
+        "default": "Direct"
+    },
     {
-        "id": "profile",
-        "label": "Quality",
+        "id": "non_desktop_profile",
+        "label": "Non-Desktop Quality",
         "type": "enum",
         "values": ["Direct", "HTTP Live Streaming HD", "HTTP Live Streaming ultra HQ", "HTTP Live Streaming HQ", "HTTP Live Streaming medium", "HTTP Live Streaming LQ", "HTTP Live Streaming ultra LQ"],
         "default": "HTTP Live Streaming medium"
