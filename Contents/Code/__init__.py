@@ -1,15 +1,23 @@
 
-TITLE 				= 'MediaPortal'
+import datetime
+
+TITLE 			= 'MediaPortal'
 ART_DEFAULT 	= 'art-default.jpg'
 ICON_DEFAULT 	= 'icon-default.png'
 ICON_PREFS 		= 'icon-prefs.png'
 
 ####################################################################################################
 
-def ServiceRequest(url, id=None):
+def ServiceRequest(url, id=None, title=None, start=None, end=None, type=None):	
 	mp_url = 'mediaportal://%s' % url
 	if id:
 		mp_url = 'mediaportal://%s/%s' % (url, id)
+	
+	if url == 'epg':
+		mp_url = 'mediaportal://%s/%s/%s/%s' % (url, id, start, end)
+		
+	if url == 'add_schedule':
+		mp_url = 'mediaportal://%s/%s/%s/%s/%s/%s' % (url, id, title, start, end, type)
 
 	data = URLService.NormalizeURL(mp_url)
 	if data:
@@ -25,7 +33,16 @@ def IsConnected():
 		return False
 
 def NoData():
-	return ""		
+	return ""
+	
+def FormatDate(date, nice=False):
+	ms = int(date.split('/Date(')[1].split('-')[0])
+	date = datetime.datetime.fromtimestamp(ms/1000.0)
+	
+	if nice:
+		return datetime.datetime.strftime(date, '%I:%M %p')
+	else:
+		return date
 
 ####################################################################################################
 
@@ -49,7 +66,8 @@ def MainMenu():
 	oc = ObjectContainer(title2='MediaPortal')
 
 	if connected:		
-		oc.add(DirectoryObject(key = Callback(GetGroups), title='Channels'))
+		oc.add(DirectoryObject(key = Callback(GetGroups, title='Groups'), title='Groups'))
+		oc.add(DirectoryObject(key = Callback(GetGroups, title='EPG'), title='EPG'))
 		oc.add(DirectoryObject(key = Callback(GetSchedules), title='Schedules'))
 		oc.add(DirectoryObject(key = Callback(GetRecordings), title='Recordings'))
 	else:
@@ -60,12 +78,15 @@ def MainMenu():
 	return oc
 
 @route('/video/mediaportal/getgroups')
-def GetGroups():
-	oc = ObjectContainer(title2='Groups')
+def GetGroups(title):
+	sub_title = ''
+	oc = ObjectContainer(title2=title)
 
 	groups = ServiceRequest('groups')
 	for group in groups:
-		oc.add(DirectoryObject(key = Callback(GetChannels, title=group['GroupName'], id=group['Id']), title=group['GroupName']))
+		if title == 'EPG':
+			sub_title = 'EPG for '
+		oc.add(DirectoryObject(key = Callback(GetChannels, title=sub_title + group['GroupName'], id=group['Id']), title=sub_title + group['GroupName']))			
 
 	return oc
 
@@ -94,10 +115,27 @@ def GetRecordings():
 def GetChannels(title, id):
 	oc = ObjectContainer(title2=title)
 
-	channels = ServiceRequest('channels', id)
+	channels = ServiceRequest('channels', id, )
 	for channel in channels:
-		vo = URLService.MetadataObjectForURL('mediaportal://show/%s/%s' % ('12', channel['Id']))
-		oc.add(vo)
+		if title.startswith('EPG'):
+			oc.add(DirectoryObject(key = Callback(GetEPGList, title=channel['Title'], id=channel['Id']), title=channel['Title']))
+		else:
+			vo = URLService.MetadataObjectForURL('mediaportal://show/%s/%s' % ('12', channel['Id']))
+			oc.add(vo)
+
+	return oc
+	
+@route('/video/mediaportal/getepglist')
+def GetEPGList(title, id):
+	oc = ObjectContainer(title2='EPG for ' + title)
+	start = datetime.datetime.now()
+	end = start + datetime.timedelta(days=1)
+	
+	channels = ServiceRequest('epg', id=id, start=start, end=end)
+	for channel in channels:
+		start = FormatDate(channel['StartTime'], True)
+		end = FormatDate(channel['EndTime'], True)
+		oc.add(DirectoryObject(key = Callback(AddSchedules, id=channel['ChannelId'], title=channel['Title'], start=channel['StartTime'], end=channel['EndTime']), title=start + ' - ' + end + ' ' + channel['Title']))
 
 	return oc
 
@@ -106,10 +144,22 @@ def DeleteSchedules(title, id):
 	oc = ObjectContainer(title2='Delete ' + title)
 	oc.add(DirectoryObject(key = Callback(DeleteSchedule, id=id), title='Delete'))
 	return oc
+	
+@route('/video/mediaportal/addschedules')
+def AddSchedules(id, title, start, end):
+	oc = ObjectContainer(title2='Recording: ' + title)
+	oc.add(DirectoryObject(key = Callback(AddSchedule, id=id, title=title, start=start, end=end, type=0), title='Record ' + title + ' once'))
+	oc.add(DirectoryObject(key = Callback(AddSchedule, id=id, title=title, start=start, end=end, type=3), title='Record ' + title + ' every time'))
+	return oc
 
 @route('/video/mediaportal/deleteschedule')
 def DeleteSchedule(id):
 	ServiceRequest('delete_schedule', id)
 	return MessageContainer('Press OK to continue', 'Item Deleted')
+	
+@route('/video/mediaportal/addschedule')
+def AddSchedule(id, title, start, end, type):
+	ServiceRequest('add_schedule', id, title, FormatDate(start), FormatDate(end), type)
+	return MessageContainer('Press OK to continue', 'Show Recorded')
 
 ####################################################################################################

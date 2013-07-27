@@ -11,7 +11,9 @@ GROUPS 				= 'http://%s/MPExtended/TVAccessService/json/GetGroups'
 RECORDINGS 			= 'http://%s/MPExtended/TVAccessService/json/GetRecordings'
 RECORDINGS_BY_ID	= 'http://%s/MPExtended/TVAccessService/json/GetRecordingById'
 SCHEDULES 			= 'http://%s/MPExtended/TVAccessService/json/GetSchedules'
+ADD_SCHEDULE		= 'http://%s/MPExtended/TVAccessService/json/AddSchedule'
 DELETE_SCHEDULE		= 'http://%s/MPExtended/TVAccessService/json/DeleteSchedule'
+EPG					= 'http://%s/MPExtended/TVAccessService/json/GetProgramsBasicForChannel'
 SESSIONS 			= 'http://%s/MPExtended/StreamingService/json/GetStreamingSessions'
 STREAM_INIT			= 'http://%s/MPExtended/StreamingService/json/InitStream'
 STREAM_START		= 'http://%s/MPExtended/StreamingService/json/StartStream'
@@ -114,6 +116,14 @@ def NormalizeURL(url):
 
 	if 'mediaportal://schedules' in url:
 		return Encode(Request(SCHEDULES))
+		
+	if 'mediaportal://epg' in url:
+		url = url.split('/')
+		return Encode(Request(EPG, {'channelId': url[3], 'startTime': url[4], 'endTime': url[5]}))
+		
+	if 'mediaportal://add_schedule' in url:
+		url = url.split('/')
+		return Encode(Request(ADD_SCHEDULE, {'channelId ': url[3], 'title': url[4], 'startTime': url[5], 'endTime': url[6], 'scheduleType': url[7]}))
 
 	if 'mediaportal://delete_schedule' in url:
 		id = url.split('/')[-1]
