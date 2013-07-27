@@ -8,17 +8,20 @@ ICON_PREFS 		= 'icon-prefs.png'
 
 ####################################################################################################
 
-def ServiceRequest(url, id=None, title=None, start=None, end=None, type=None):	
-	mp_url = 'mediaportal://%s' % url
-	if id:
-		mp_url = 'mediaportal://%s/%s' % (url, id)
-	
-	if url == 'epg':
-		mp_url = 'mediaportal://%s/%s/%s/%s' % (url, id, start, end)
-		
-	if url == 'add_schedule':
-		mp_url = 'mediaportal://%s/%s/%s/%s/%s/%s' % (url, id, title, start, end, type)
+def ServiceRequest(url, id=None, title=None, start=None, end=None, type=None):		
+	data = [url]
+	if id:		
+		data.append(id)	
+	if title:
+		data.append(title)
+	if start:
+		data.append(str(start))
+	if end:
+		data.append(str(end))
+	if type:
+		data.append(type)	
 
+	mp_url = 'mediaportal://%s' % ('/'.join(data))
 	data = URLService.NormalizeURL(mp_url)
 	if data:
 		return JSON.ObjectFromString(String.Decode(data))
@@ -35,12 +38,12 @@ def IsConnected():
 def NoData():
 	return ""
 	
-def FormatDate(date, nice=False):
+def FormatDate(date, format=None):
 	ms = int(date.split('/Date(')[1].split('-')[0])
 	date = datetime.datetime.fromtimestamp(ms/1000.0)
 	
-	if nice:
-		return datetime.datetime.strftime(date, '%I:%M %p')
+	if format:
+		return datetime.datetime.strftime(date, format)
 	else:
 		return date
 
@@ -133,8 +136,8 @@ def GetEPGList(title, id):
 	
 	channels = ServiceRequest('epg', id=id, start=start, end=end)
 	for channel in channels:
-		start = FormatDate(channel['StartTime'], True)
-		end = FormatDate(channel['EndTime'], True)
+		start = FormatDate(channel['StartTime'], '%I:%M %p')
+		end = FormatDate(channel['EndTime'], '%I:%M %p')
 		oc.add(DirectoryObject(key = Callback(AddSchedules, id=channel['ChannelId'], title=channel['Title'], start=channel['StartTime'], end=channel['EndTime']), title=start + ' - ' + end + ' ' + channel['Title']))
 
 	return oc
