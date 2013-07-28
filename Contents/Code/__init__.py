@@ -69,8 +69,7 @@ def MainMenu():
 	oc = ObjectContainer(title2='MediaPortal')
 
 	if connected:		
-		oc.add(DirectoryObject(key = Callback(GetGroups, title='Groups'), title='Groups'))
-		oc.add(DirectoryObject(key = Callback(GetGroups, title='EPG'), title='EPG'))
+		oc.add(DirectoryObject(key = Callback(GetEPG, title='EPG'), title='EPG'))
 		oc.add(DirectoryObject(key = Callback(GetSchedules), title='Schedules'))
 		oc.add(DirectoryObject(key = Callback(GetRecordings), title='Recordings'))
 	else:
@@ -80,15 +79,13 @@ def MainMenu():
 
 	return oc
 
-@route('/video/mediaportal/getgroups')
-def GetGroups(title):
-	sub_title = ''
+@route('/video/mediaportal/getepg')
+def GetEPG(title):
+	sub_title = 'EPG for '
 	oc = ObjectContainer(title2=title)
 
 	groups = ServiceRequest('groups')
 	for group in groups:
-		if title == 'EPG':
-			sub_title = 'EPG for '
 		oc.add(DirectoryObject(key = Callback(GetChannels, title=sub_title + group['GroupName'], id=group['Id']), title=sub_title + group['GroupName']))			
 
 	return oc
@@ -118,13 +115,9 @@ def GetRecordings():
 def GetChannels(title, id):
 	oc = ObjectContainer(title2=title)
 
-	channels = ServiceRequest('channels', id, )
+	channels = ServiceRequest('channels', id)
 	for channel in channels:
-		if title.startswith('EPG'):
-			oc.add(DirectoryObject(key = Callback(GetEPGList, title=channel['Title'], id=channel['Id']), title=channel['Title']))
-		else:
-			vo = URLService.MetadataObjectForURL('mediaportal://show/%s/%s' % ('12', channel['Id']))
-			oc.add(vo)
+		oc.add(DirectoryObject(key = Callback(GetEPGList, title=channel['Title'], id=channel['Id']), title=channel['Title']))			
 
 	return oc
 	
@@ -135,31 +128,35 @@ def GetEPGList(title, id):
 	end = start + datetime.timedelta(days=1)
 	
 	channels = ServiceRequest('epg', id=id, start=start, end=end)
-	for channel in channels:
+	for idx,channel in enumerate(channels):
 		start = FormatDate(channel['StartTime'], '%I:%M %p')
 		end = FormatDate(channel['EndTime'], '%I:%M %p')
-		oc.add(DirectoryObject(key = Callback(AddSchedules, id=channel['ChannelId'], title=channel['Title'], start=channel['StartTime'], end=channel['EndTime']), title=start + ' - ' + end + ' ' + channel['Title']))
+		oc.add(DirectoryObject(key = Callback(PlayAndRecordMenu, id=channel['ChannelId'], title=channel['Title'], start=channel['StartTime'], end=channel['EndTime'], index=idx), title=start + ' - ' + end + ' ' + channel['Title']))
 
 	return oc
 
+@route('/video/mediaportal/playandrecordmenu')	
+def PlayAndRecordMenu(id, title, start, end, index):
+	oc = ObjectContainer(title2='Play/Record: ' + title)
+	Log(index)
+	if int(index) == 0:
+		oc.add(URLService.MetadataObjectForURL('mediaportal://show/%s/%s' % ('12', id)))
+	
+	oc.add(DirectoryObject(key = Callback(AddSchedule, id=id, title=title, start=start, end=end, type=0), title='Record ' + title + ' once'))
+	oc.add(DirectoryObject(key = Callback(AddSchedule, id=id, title=title, start=start, end=end, type=3), title='Record ' + title + ' every time'))
+	return oc
+	
 @route('/video/mediaportal/deleteschedules')
 def DeleteSchedules(title, id):
 	oc = ObjectContainer(title2='Delete ' + title)
 	oc.add(DirectoryObject(key = Callback(DeleteSchedule, id=id), title='Delete'))
 	return oc
 	
-@route('/video/mediaportal/addschedules')
-def AddSchedules(id, title, start, end):
-	oc = ObjectContainer(title2='Recording: ' + title)
-	oc.add(DirectoryObject(key = Callback(AddSchedule, id=id, title=title, start=start, end=end, type=0), title='Record ' + title + ' once'))
-	oc.add(DirectoryObject(key = Callback(AddSchedule, id=id, title=title, start=start, end=end, type=3), title='Record ' + title + ' every time'))
-	return oc
-
 @route('/video/mediaportal/deleteschedule')
 def DeleteSchedule(id):
 	ServiceRequest('delete_schedule', id)
 	return MessageContainer('Press OK to continue', 'Item Deleted')
-	
+
 @route('/video/mediaportal/addschedule')
 def AddSchedule(id, title, start, end, type):
 	ServiceRequest('add_schedule', id, title, FormatDate(start), FormatDate(end), type)
