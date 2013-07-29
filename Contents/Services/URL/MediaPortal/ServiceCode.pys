@@ -18,14 +18,15 @@ SESSIONS 			= 'http://%s/MPExtended/StreamingService/json/GetStreamingSessions'
 STREAM_INIT			= 'http://%s/MPExtended/StreamingService/json/InitStream'
 STREAM_START		= 'http://%s/MPExtended/StreamingService/json/StartStream'
 STREAM_CLOSE		= 'http://%s/MPExtended/StreamingService/json/FinishStream'
+EXTRACT_IMAGE		= 'http://%s/MPExtended/StreamingService/stream/ExtractImage'
 
 def GetProfile():
-	if Client.Platform in [ClientPlatform.MacOSX, ClientPlatform.Windows]:
+	if Client.Platform in [ClientPlatform.MacOSX, ClientPlatform.Windows, ClientPlatform.Linux]:
 		return Prefs['desktop_profile']
 	else:
 		return Prefs['non_desktop_profile']
 
-def Request(url, values=None, stringify=True):
+def Request(url, values=None, stringify=True, url_only=False):
 	try:
 		username 	= Prefs['username']
 		password 	= Prefs['password']
@@ -35,9 +36,12 @@ def Request(url, values=None, stringify=True):
 		token 		= encodestring("%s:%s" % (username, password))[:-1]
 		headers 	= {'Authorization': "Basic %s" % (token)}
 		qs 			= '?' + urlencode(values) if values != None else ''
-
+		
+		if url_only:
+			return url + qs
+		
 		if stringify:
-			return HTTP.Request(url + qs, headers=headers).content
+			return HTTP.Request(url + qs, headers=headers).content		
 		else:
 			return JSON.ObjectFromString(HTTP.Request(url + qs, headers=headers).content)
 
@@ -139,12 +143,18 @@ def MetadataObjectForURL(url):
 	if match:
 		type_id, item_id = match.groups()
 		data = GetData(type_id, item_id)
+		
+		if int(type_id) == 13:
+			thumb = Request(EXTRACT_IMAGE, {'itemId': item_id, 'type': type_id}, url_only=True)			
+		else:
+			thumb = Resource.ContentsOfURLWithFallback(url='', fallback='icon-default.png')
 
 		return VideoClipObject(
 			title     = data['title'],
 			summary   = data['summary'],
 			duration  = data['duration'],
-			url       = url
+			url       = url,
+			thumb	  = thumb
 		)
 	pass
 
@@ -154,21 +164,21 @@ def MediaObjectsForURL(url):
 	if match:
 		type_id, item_id = match.groups()
 
-	if profile == "Direct":
-		return [MediaObject(
-			parts = [PartObject(key=Callback(PlayVideo, type=type_id, id=item_id, profile=profile))]				
-		)]
-	else:
+	if 'HTTP Live Streaming' in profile:
 		return [
 			MediaObject(
 				parts	= [PartObject(key=HTTPLiveStreamURL(Callback(PlayVideo, type=type_id, id=item_id, profile=profile)))]
 			)
 		]
+	else:
+		return [MediaObject(
+			parts = [PartObject(key=Callback(PlayVideo, type=type_id, id=item_id, profile=profile))]				
+		)]
 
 def PlayVideo(type, id, profile):
 	try:
 		close 	= CloseStreams()
-		
+
 		try:
 			init = Request(STREAM_INIT, values = {"identifier": id, "itemId": id, "type": type})
 		except:
@@ -183,19 +193,19 @@ def PlayVideo(type, id, profile):
 
 		playlist_url = start["Result"]	
 
-		if profile == "Direct":			
+		if 'HTTP Live Streaming' in profile:
+			return "#EXTM3U\n#EXT-X-STREAM-INF:PROGRAM-ID=" + id + ",BANDWIDTH=2200000\n" + playlist_url		
+		else:			
 			return Redirect(playlist_url)
-		else:
-			return "#EXTM3U\n#EXT-X-STREAM-INF:PROGRAM-ID=" + id + ",BANDWIDTH=2200000\n" + playlist_url
 
 	except:
 		raise Ex.MediaNotAvailable
 
 def CloseStreams():
-		streams = Request(SESSIONS, stringify=False)
-		for s in streams:
-			try:
-				data = Request(STREAM_CLOSE, values = {"identifier": s["Identifier"]})
-			except:
-				raise Ex.MediaNotAvailable
-		return True
+	streams = Request(SESSIONS, stringify=False)
+	for s in streams:
+		try:
+			data = Request(STREAM_CLOSE, values = {"identifier": s["Identifier"]})
+		except:
+			raise Ex.MediaNotAvailable
+	return True

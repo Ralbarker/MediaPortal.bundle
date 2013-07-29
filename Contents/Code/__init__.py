@@ -138,7 +138,7 @@ def GetEPGList(title, id):
 @route('/video/mediaportal/playandrecordmenu')	
 def PlayAndRecordMenu(id, title, start, end, index):
 	oc = ObjectContainer(title2='Play/Record: ' + title)
-	Log(index)
+
 	if int(index) == 0:
 		oc.add(URLService.MetadataObjectForURL('mediaportal://show/%s/%s' % ('12', id)))
 	
