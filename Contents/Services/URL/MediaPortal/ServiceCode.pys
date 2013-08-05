@@ -41,7 +41,7 @@ def Request(url, values=None, stringify=True, url_only=False):
 			return url + qs
 		
 		if stringify:
-			return HTTP.Request(url + qs, headers=headers).content		
+			return HTTP.Request(url + qs, headers=headers).content
 		else:
 			return JSON.ObjectFromString(HTTP.Request(url + qs, headers=headers).content)
 
@@ -53,7 +53,7 @@ def GetData(type_id, item_id):
 
 	# Live TV
 	if int(type_id) == 12:
-		req = Request(CHANNELS_BY_ID, {'channelId': item_id}, stringify=False)				
+		req = Request(CHANNELS_BY_ID, {'channelId': item_id}, stringify=False)
 		
 		try:
 			data['title'] = 'Play ' + req['CurrentProgram']['Title']
@@ -75,12 +75,12 @@ def GetData(type_id, item_id):
 		req = Request(RECORDINGS_BY_ID, {'id': item_id}, stringify=False)
 		
 		try:
-			end = int(req['EndTime'].split('/Date(')[1].split('-')[0])
+			end = int(req['EndTime'][6:-7])
 		except:
 			end = 0
 		
 		try:
-			start = int(req['StartTime'].split('/Date(')[1].split('-')[0])
+			start = int(req['StartTime'][6:-7])
 		except:
 			start = 0
 
@@ -145,7 +145,7 @@ def MetadataObjectForURL(url):
 		data = GetData(type_id, item_id)
 		
 		if int(type_id) == 13:
-			thumb = Request(EXTRACT_IMAGE, {'itemId': item_id, 'type': type_id}, url_only=True)			
+			thumb = Request(EXTRACT_IMAGE, {'itemId': item_id, 'type': type_id}, url_only=True)
 		else:
 			thumb = Resource.ContentsOfURLWithFallback(url='', fallback='icon-default.png')
 
@@ -172,7 +172,7 @@ def MediaObjectsForURL(url):
 		]
 	else:
 		return [MediaObject(
-			parts = [PartObject(key=Callback(PlayVideo, type=type_id, id=item_id, profile=profile))]				
+			parts = [PartObject(key=Callback(PlayVideo, type=type_id, id=item_id, profile=profile))]
 		)]
 
 def PlayVideo(type, id, profile):
@@ -186,15 +186,15 @@ def PlayVideo(type, id, profile):
 			init = Request(STREAM_INIT, values = {"identifier": id, "itemId": id, "type": type})
 
 		try:
-			start = Request(STREAM_START, values = {"identifier": id, "profileName": profile}, stringify=False)			
+			start = Request(STREAM_START, values = {"identifier": id, "profileName": profile}, stringify=False)
 		except:
 			time.sleep(2)
 			start = Request(STREAM_START, values = {"identifier": id, "profileName": profile}, stringify=False)
 
-		playlist_url = start["Result"]	
+		playlist_url = start["Result"]
 
 		if 'HTTP Live Streaming' in profile:
-			return "#EXTM3U\n#EXT-X-STREAM-INF:PROGRAM-ID=" + id + ",BANDWIDTH=2200000\n" + playlist_url		
+			return "#EXTM3U\n#EXT-X-STREAM-INF:PROGRAM-ID=" + id + ",BANDWIDTH=2200000\n" + playlist_url
 		else:			
 			return Redirect(playlist_url)
 

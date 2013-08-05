@@ -8,7 +8,7 @@ ICON_PREFS 		= 'icon-prefs.png'
 
 ####################################################################################################
 
-def ServiceRequest(url, id=None, title=None, start=None, end=None, type=None):		
+def ServiceRequest(url, id=None, title=None, start=None, end=None, type=None):
 	data = [url]
 	if id:		
 		data.append(id)	
@@ -39,7 +39,7 @@ def NoData():
 	return ""
 	
 def FormatDate(date, format=None):
-	ms = int(date.split('/Date(')[1].split('-')[0])
+	ms = int(date[6:-7])
 	date = datetime.datetime.fromtimestamp(ms/1000.0)
 	
 	if format:
@@ -86,7 +86,7 @@ def GetEPG(title):
 
 	groups = ServiceRequest('groups')
 	for group in groups:
-		oc.add(DirectoryObject(key = Callback(GetChannels, title=sub_title + group['GroupName'], id=group['Id']), title=sub_title + group['GroupName']))			
+		oc.add(DirectoryObject(key = Callback(GetChannels, title=sub_title + group['GroupName'], id=group['Id']), title=sub_title + group['GroupName']))
 
 	return oc
 
@@ -117,7 +117,7 @@ def GetChannels(title, id):
 
 	channels = ServiceRequest('channels', id)
 	for channel in channels:
-		oc.add(DirectoryObject(key = Callback(GetEPGList, title=channel['Title'], id=channel['Id']), title=channel['Title']))			
+		oc.add(DirectoryObject(key = Callback(GetEPGList, title=channel['Title'], id=channel['Id']), title=channel['Title']))
 
 	return oc
 	
