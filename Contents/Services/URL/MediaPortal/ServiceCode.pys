@@ -56,7 +56,7 @@ def GetData(type_id, item_id):
 		req = Request(CHANNELS_BY_ID, {'channelId': item_id}, stringify=False)
 		
 		try:
-			data['title'] = 'Play ' + req['CurrentProgram']['Title']
+			data['title'] = 'Play: ' + req['CurrentProgram']['Title']
 		except:
 			data['title'] = req['Title']
 
@@ -85,7 +85,7 @@ def GetData(type_id, item_id):
 			start = 0
 
 		try:
-			data['title'] =	req['ChannelName'] + ' - ' + req['Title']
+			data['title'] =	req['Title']
 		except:
 			data['title'] = ''
 		

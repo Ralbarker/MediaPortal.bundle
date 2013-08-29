@@ -128,10 +128,13 @@ def GetEPGList(title, id):
 	end = start + datetime.timedelta(days=1)
 	
 	channels = ServiceRequest('epg', id=id, start=start, end=end)
-	for idx,channel in enumerate(channels):
-		start = FormatDate(channel['StartTime'], '%I:%M %p')
-		end = FormatDate(channel['EndTime'], '%I:%M %p')
-		oc.add(DirectoryObject(key = Callback(PlayAndRecordMenu, id=channel['ChannelId'], title=channel['Title'], start=channel['StartTime'], end=channel['EndTime'], index=idx), title=start + ' - ' + end + ' ' + channel['Title']))
+	if len(channels) > 0:
+		for idx,channel in enumerate(channels):
+			start = FormatDate(channel['StartTime'], '%I:%M %p')
+			end = FormatDate(channel['EndTime'], '%I:%M %p')
+			oc.add(DirectoryObject(key = Callback(PlayAndRecordMenu, id=channel['ChannelId'], title=channel['Title'], start=channel['StartTime'], end=channel['EndTime'], index=idx), title=start + ' - ' + end + ' ' + channel['Title']))
+	else:
+		oc.add(URLService.MetadataObjectForURL('mediaportal://show/%s/%s' % ('12', id)))
 
 	return oc
 
