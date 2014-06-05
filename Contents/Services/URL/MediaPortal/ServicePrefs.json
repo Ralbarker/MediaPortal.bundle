@@ -24,7 +24,7 @@
         "label": "Port",
         "default": "4322"
     },
-	{
+    {
         "id": "desktop_profile",
         "label": "Desktop Quality",
         "type": "enum",

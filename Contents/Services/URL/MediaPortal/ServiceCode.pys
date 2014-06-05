@@ -4,208 +4,232 @@ from urllib import urlencode
 from time import sleep
 import re
 
-STATUS				= 'http://%s/MPExtended/TVAccessService/json/GetServiceDescription'
-CHANNELS 			= 'http://%s/MPExtended/TVAccessService/json/GetChannelsDetailed'
-CHANNELS_BY_ID		= 'http://%s/MPExtended/TVAccessService/json/GetChannelDetailedById'
-GROUPS 				= 'http://%s/MPExtended/TVAccessService/json/GetGroups'
-RECORDINGS 			= 'http://%s/MPExtended/TVAccessService/json/GetRecordings'
-RECORDINGS_BY_ID	= 'http://%s/MPExtended/TVAccessService/json/GetRecordingById'
-SCHEDULES 			= 'http://%s/MPExtended/TVAccessService/json/GetSchedules'
-ADD_SCHEDULE		= 'http://%s/MPExtended/TVAccessService/json/AddSchedule'
-DELETE_SCHEDULE		= 'http://%s/MPExtended/TVAccessService/json/DeleteSchedule'
-EPG					= 'http://%s/MPExtended/TVAccessService/json/GetProgramsBasicForChannel'
-SESSIONS 			= 'http://%s/MPExtended/StreamingService/json/GetStreamingSessions'
-STREAM_INIT			= 'http://%s/MPExtended/StreamingService/json/InitStream'
-STREAM_START		= 'http://%s/MPExtended/StreamingService/json/StartStream'
-STREAM_CLOSE		= 'http://%s/MPExtended/StreamingService/json/FinishStream'
-EXTRACT_IMAGE		= 'http://%s/MPExtended/StreamingService/stream/ExtractImage'
+STATUS              = 'http://%s/MPExtended/TVAccessService/json/GetServiceDescription'
+CHANNELS            = 'http://%s/MPExtended/TVAccessService/json/GetChannelsDetailed'
+CHANNELS_BY_ID      = 'http://%s/MPExtended/TVAccessService/json/GetChannelDetailedById'
+GROUPS              = 'http://%s/MPExtended/TVAccessService/json/GetGroups'
+RECORDINGS          = 'http://%s/MPExtended/TVAccessService/json/GetRecordings'
+RECORDINGS_BY_ID    = 'http://%s/MPExtended/TVAccessService/json/GetRecordingById'
+SCHEDULES           = 'http://%s/MPExtended/TVAccessService/json/GetSchedules'
+ADD_SCHEDULE        = 'http://%s/MPExtended/TVAccessService/json/AddSchedule'
+DELETE_SCHEDULE     = 'http://%s/MPExtended/TVAccessService/json/DeleteSchedule'
+EPG                 = 'http://%s/MPExtended/TVAccessService/json/GetProgramsBasicForChannel'
+SESSIONS            = 'http://%s/MPExtended/StreamingService/json/GetStreamingSessions'
+STREAM_INIT         = 'http://%s/MPExtended/StreamingService/json/InitStream'
+STREAM_START        = 'http://%s/MPExtended/StreamingService/json/StartStream'
+STREAM_CLOSE        = 'http://%s/MPExtended/StreamingService/json/FinishStream'
+EXTRACT_IMAGE       = 'http://%s/MPExtended/StreamingService/stream/ExtractImage'
+
+def FormatDate(date, format=None):
+	ms = int(date[6:-7])
+	date = datetime.datetime.fromtimestamp(ms/1000.0)
+
+	if format:
+		return datetime.datetime.strftime(date, format)
+	else:
+		return date
 
 def GetProfile():
-	if Client.Platform in [ClientPlatform.MacOSX, ClientPlatform.Windows, ClientPlatform.Linux]:
-		return Prefs['desktop_profile']
-	else:
-		return Prefs['non_desktop_profile']
+    if Client.Platform in [ClientPlatform.MacOSX, ClientPlatform.Windows, ClientPlatform.Linux]:
+        return Prefs['desktop_profile']
+    else:
+        return Prefs['non_desktop_profile']
 
 def Request(url, values=None, stringify=True, url_only=False):
-	try:
-		username 	= Prefs['username']
-		password 	= Prefs['password']
-		ip 			= Prefs['ip']
-		port 		= Prefs['port']
-		url 		= url % (ip + ":" + port)
-		token 		= encodestring("%s:%s" % (username, password))[:-1]
-		headers 	= {'Authorization': "Basic %s" % (token)}
-		qs 			= '?' + urlencode(values) if values != None else ''
-		
-		if url_only:
-			return url + qs
-		
-		if stringify:
-			return HTTP.Request(url + qs, headers=headers).content
-		else:
-			return JSON.ObjectFromString(HTTP.Request(url + qs, headers=headers).content)
+    try:
+        username    = Prefs['username']
+        password    = Prefs['password']
+        ip          = Prefs['ip']
+        port        = Prefs['port']
+        url         = url % (ip + ":" + port)
+        token       = encodestring("%s:%s" % (username, password))[:-1]
+        headers     = {'Authorization': "Basic %s" % (token)}
+        qs          = '?' + urlencode(values) if values != None else ''
 
-	except Exception, e:		
-		return ''
+        if url_only:
+            return url + qs
+
+        if stringify:
+            return HTTP.Request(url + qs, headers=headers).content
+        else:
+            return JSON.ObjectFromString(HTTP.Request(url + qs, headers=headers).content)
+
+    except Exception, e:
+        return ''
 
 def GetData(type_id, item_id):
-	data = {}
+    data = {}
 
-	# Live TV
-	if int(type_id) == 12:
-		req = Request(CHANNELS_BY_ID, {'channelId': item_id}, stringify=False)
-		
-		try:
-			data['title'] = 'Play: ' + req['CurrentProgram']['Title']
-		except:
-			data['title'] = req['Title']
+    # Live TV
+    if int(type_id) == 12:
+        req = Request(CHANNELS_BY_ID, {'channelId': item_id}, stringify=False)
 
- 		try:
-			data['summary'] = req['CurrentProgram']['Description'].strip(':- ')
-		except:
-			data['summary'] = ''
+        try:
+            data['title'] = 'Play: ' + req['CurrentProgram']['Title']
+        except:
+            data['title'] = req['Title']
 
-		try:
-			data['duration'] = req['CurrentProgram']['DurationInMinutes'] * 60 * 1000
-		except:
-			data['duration'] = 0
+        try:
+            data['summary'] = req['CurrentProgram']['Description'].strip(':- ')
+        except:
+            data['summary'] = ''
 
-	# Recordings
-	elif int(type_id) == 13:
-		req = Request(RECORDINGS_BY_ID, {'id': item_id}, stringify=False)
-		
-		try:
-			end = int(req['EndTime'][6:-7])
-		except:
-			end = 0
-		
-		try:
-			start = int(req['StartTime'][6:-7])
-		except:
-			start = 0
+        try:
+            data['duration'] = req['CurrentProgram']['DurationInMinutes'] * 60 * 1000
+        except:
+            data['duration'] = 0
 
-		try:
-			data['title'] =	req['Title']
-		except:
-			data['title'] = ''
-		
-		try:
-			data['summary'] = req['Description'].strip(':- ')
-		except:
-			data['summary'] = ''
-		
-		try:
-			data['duration'] = int(end - start)
-		except:
-			data['duration'] = 0
+    # Recordings
+    elif int(type_id) == 13:
+        req = Request(RECORDINGS_BY_ID, {'id': item_id}, stringify=False)
 
-	return data
+        try:
+            end = int(req['EndTime'][6:-7])
+        except:
+            end = 0
+
+        try:
+            start = int(req['StartTime'][6:-7])
+        except:
+            start = 0
+
+        try:
+            data['summary'] = req['Description'].strip(':- ')
+        except:
+            data['summary'] = ''
+
+        try:
+            data['duration'] = int(end - start)
+        except:
+            data['duration'] = 0
+
+        try:
+            data['channel'] = req['ChannelName']
+        except:
+            data['channel'] = ''
+
+        try:
+            items = []
+            if 'Title' in req:
+                items.append(req['Title'])
+
+            if 'ChannelName' in req:
+                items.append(req['ChannelName'])
+
+            if 'StartTime' in req:
+                items.append(FormatDate(req['StartTime'], '%Y-%m-%d %I:%M %p'))
+
+            data['title'] = ' - '.join(items)
+        except:
+            data['title'] = ''
+
+    return data
 
 def Encode(data):
-	return String.Encode(data)
+    return String.Encode(data)
 
 def NormalizeURL(url):
-	if 'mediaportal://status' in url:
-		return Encode(Request(STATUS))
+    if 'mediaportal://status' in url:
+        return Encode(Request(STATUS))
 
-	if 'mediaportal://channels' in url:
-		id = url.split('/')[-1]
-		return Encode(Request(CHANNELS, {'groupId': id}))
+    if 'mediaportal://channels' in url:
+        id = url.split('/')[-1]
+        return Encode(Request(CHANNELS, {'groupId': id}))
 
-	if 'mediaportal://groups' in url:
-		return Encode(Request(GROUPS))
+    if 'mediaportal://groups' in url:
+        return Encode(Request(GROUPS))
 
-	if 'mediaportal://recordings' in url:
-		return Encode(Request(RECORDINGS))
+    if 'mediaportal://recordings' in url:
+        return Encode(Request(RECORDINGS))
 
-	if 'mediaportal://schedules' in url:
-		return Encode(Request(SCHEDULES))
-		
-	if 'mediaportal://epg' in url:
-		url = url.split('/')
-		return Encode(Request(EPG, {'channelId': url[3], 'startTime': url[4], 'endTime': url[5]}))
-		
-	if 'mediaportal://add_schedule' in url:
-		url = url.split('/')
-		return Encode(Request(ADD_SCHEDULE, {'channelId ': url[3], 'title': url[4], 'startTime': url[5], 'endTime': url[6], 'scheduleType': url[7]}))
+    if 'mediaportal://schedules' in url:
+        return Encode(Request(SCHEDULES))
 
-	if 'mediaportal://delete_schedule' in url:
-		id = url.split('/')[-1]
-		return Encode(Request(DELETE_SCHEDULE, {'scheduleId': id}))
+    if 'mediaportal://epg' in url:
+        url = url.split('/')
+        return Encode(Request(EPG, {'channelId': url[3], 'startTime': url[4], 'endTime': url[5]}))
 
-	if 'mediaportal://close' in url:
-		return Encode(Request(CLOSE))
+    if 'mediaportal://add_schedule' in url:
+        url = url.split('/')
+        return Encode(Request(ADD_SCHEDULE, {'channelId ': url[3], 'title': url[4], 'startTime': url[5], 'endTime': url[6], 'scheduleType': url[7]}))
 
-	return url
+    if 'mediaportal://delete_schedule' in url:
+        id = url.split('/')[-1]
+        return Encode(Request(DELETE_SCHEDULE, {'scheduleId': id}))
+
+    if 'mediaportal://close' in url:
+        return Encode(Request(CLOSE))
+
+    return url
 
 def MetadataObjectForURL(url):
-	match = re.match(r'mediaportal://show/([^/]+)/([^/]+)', url)
-	if match:
-		type_id, item_id = match.groups()
-		data = GetData(type_id, item_id)
-		
-		if int(type_id) == 13:
-			thumb = Request(EXTRACT_IMAGE, {'itemId': item_id, 'type': type_id}, url_only=True)
-		else:
-			thumb = Resource.ContentsOfURLWithFallback(url='', fallback='icon-default.png')
+    match = re.match(r'mediaportal://show/([^/]+)/([^/]+)', url)
+    if match:
+        type_id, item_id = match.groups()
+        data = GetData(type_id, item_id)
 
-		return VideoClipObject(
-			title     = data['title'],
-			summary   = data['summary'],
-			duration  = data['duration'],
-			url       = url,
-			thumb	  = thumb
-		)
-	pass
+        if int(type_id) == 13:
+            thumb = Request(EXTRACT_IMAGE, {'itemId': item_id, 'type': type_id}, url_only=True)
+        else:
+            thumb = Resource.ContentsOfURLWithFallback(url='', fallback='icon-default.png')
+
+        return VideoClipObject(
+            title     = data['title'],
+            summary   = data['summary'],
+            duration  = data['duration'],
+            url       = url,
+            thumb     = thumb
+        )
+    pass
 
 def MediaObjectsForURL(url):
-	profile = GetProfile()
-	match = re.match(r'mediaportal://show/([^/]+)/([^/]+)', url)
-	if match:
-		type_id, item_id = match.groups()
+    profile = GetProfile()
+    match = re.match(r'mediaportal://show/([^/]+)/([^/]+)', url)
+    if match:
+        type_id, item_id = match.groups()
 
-	if 'HTTP Live Streaming' in profile:
-		return [
-			MediaObject(
-				parts	= [PartObject(key=HTTPLiveStreamURL(Callback(PlayVideo, type=type_id, id=item_id, profile=profile)))]
-			)
-		]
-	else:
-		return [MediaObject(
-			parts = [PartObject(key=Callback(PlayVideo, type=type_id, id=item_id, profile=profile))]
-		)]
+    if 'HTTP Live Streaming' in profile:
+        return [
+            MediaObject(
+                parts   = [PartObject(key=HTTPLiveStreamURL(Callback(PlayVideo, type=type_id, id=item_id, profile=profile)))]
+            )
+        ]
+    else:
+        return [MediaObject(
+            parts = [PartObject(key=Callback(PlayVideo, type=type_id, id=item_id, profile=profile))]
+        )]
 
 def PlayVideo(type, id, profile):
-	try:
-		close 	= CloseStreams()
+    try:
+        close   = CloseStreams()
 
-		try:
-			init = Request(STREAM_INIT, values = {"identifier": id, "itemId": id, "type": type})
-		except:
-			time.sleep(2)
-			init = Request(STREAM_INIT, values = {"identifier": id, "itemId": id, "type": type})
+        try:
+            init = Request(STREAM_INIT, values = {"identifier": id, "itemId": id, "type": type})
+        except:
+            time.sleep(2)
+            init = Request(STREAM_INIT, values = {"identifier": id, "itemId": id, "type": type})
 
-		try:
-			start = Request(STREAM_START, values = {"identifier": id, "profileName": profile}, stringify=False)
-		except:
-			time.sleep(2)
-			start = Request(STREAM_START, values = {"identifier": id, "profileName": profile}, stringify=False)
+        try:
+            start = Request(STREAM_START, values = {"identifier": id, "profileName": profile}, stringify=False)
+        except:
+            time.sleep(2)
+            start = Request(STREAM_START, values = {"identifier": id, "profileName": profile}, stringify=False)
 
-		playlist_url = start["Result"]
+        playlist_url = start["Result"]
 
-		if 'HTTP Live Streaming' in profile:
-			return "#EXTM3U\n#EXT-X-STREAM-INF:PROGRAM-ID=" + id + ",BANDWIDTH=2200000\n" + playlist_url
-		else:			
-			return Redirect(playlist_url)
+        if 'HTTP Live Streaming' in profile:
+            return "#EXTM3U\n#EXT-X-STREAM-INF:PROGRAM-ID=" + id + ",BANDWIDTH=2200000\n" + playlist_url
+        else:
+            return Redirect(playlist_url)
 
-	except:
-		raise Ex.MediaNotAvailable
+    except:
+        raise Ex.MediaNotAvailable
 
 def CloseStreams():
-	streams = Request(SESSIONS, stringify=False)
-	for s in streams:
-		try:
-			data = Request(STREAM_CLOSE, values = {"identifier": s["Identifier"]})
-		except:
-			raise Ex.MediaNotAvailable
-	return True
+    streams = Request(SESSIONS, stringify=False)
+    for s in streams:
+        try:
+            data = Request(STREAM_CLOSE, values = {"identifier": s["Identifier"]})
+        except:
+            raise Ex.MediaNotAvailable
+    return True
