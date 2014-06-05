@@ -1,8 +1,8 @@
-
 from base64 import encodestring
 from urllib import urlencode
 from time import sleep
 import re
+import datetime
 
 STATUS              = 'http://%s/MPExtended/TVAccessService/json/GetServiceDescription'
 CHANNELS            = 'http://%s/MPExtended/TVAccessService/json/GetChannelsDetailed'
@@ -19,6 +19,7 @@ STREAM_INIT         = 'http://%s/MPExtended/StreamingService/json/InitStream'
 STREAM_START        = 'http://%s/MPExtended/StreamingService/json/StartStream'
 STREAM_CLOSE        = 'http://%s/MPExtended/StreamingService/json/FinishStream'
 EXTRACT_IMAGE       = 'http://%s/MPExtended/StreamingService/stream/ExtractImage'
+LOGOS               = 'http://%s/MPExtended/StreamingService/stream/GetArtwork?mediatype=12&id=%s&artworktype=5&offset=0'
 
 def FormatDate(date, format=None):
 	ms = int(date[6:-7])

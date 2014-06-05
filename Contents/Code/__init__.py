@@ -1,4 +1,3 @@
-
 import datetime
 
 TITLE           = 'MediaPortal'
@@ -35,6 +34,7 @@ def IsConnected():
     else:
         return False
 
+@route('/video/mediaportal/nodata')
 def NoData():
     return ""
 
@@ -48,7 +48,6 @@ def FormatDate(date, format=None):
         return date
 
 ####################################################################################################
-
 def ValidatePrefs():
   pass
 
