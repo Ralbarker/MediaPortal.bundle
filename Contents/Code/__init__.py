@@ -116,7 +116,10 @@ def GetChannels(title, id):
 
     channels = ServiceRequest('channels', id)
     for channel in channels:
-        oc.add(DirectoryObject(key = Callback(GetEPGList, title=channel['Title'], id=channel['Id']), title=channel['Title']))
+        oc.add(DirectoryObject(
+            key = Callback(GetEPGList, title=channel['Title'], id=channel['Id']),
+            title=channel['Title'],
+            thumb=Resource.ContentsOfURLWithFallback(url=ServiceRequest('get_artwork', id), fallback='icon-default.png')))
 
     return oc
 
