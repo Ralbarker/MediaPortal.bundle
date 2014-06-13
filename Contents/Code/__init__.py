@@ -7,7 +7,7 @@ ICON_PREFS      = 'icon-prefs.png'
 
 ####################################################################################################
 
-def ServiceRequest(url, id=None, title=None, start=None, end=None, type=None):
+def ServiceRequest(url, id=None, title=None, start=None, end=None, type=None, is_json=True):
     data = [url]
     if id:
         data.append(id)
@@ -23,7 +23,10 @@ def ServiceRequest(url, id=None, title=None, start=None, end=None, type=None):
     mp_url = 'mediaportal://%s' % ('/'.join(data))
     data = URLService.NormalizeURL(mp_url)
     if data:
-        return JSON.ObjectFromString(String.Decode(data))
+        if is_json == True:
+            return JSON.ObjectFromString(String.Decode(data))
+        else:
+            return String.Decode(data)
     else:
         return
 
@@ -116,7 +119,12 @@ def GetChannels(title, id):
 
     channels = ServiceRequest('channels', id)
     for channel in channels:
-        oc.add(DirectoryObject(key = Callback(GetEPGList, title=channel['Title'], id=channel['Id']), title=channel['Title']))
+        thumb = ServiceRequest('get_artwork', id, is_json=False)
+        Log.Debug(thumb)
+        oc.add(DirectoryObject(
+            key = Callback(GetEPGList, title=channel['Title'], id=channel['Id']),
+            title=channel['Title'],
+            thumb=Resource.ContentsOfURLWithFallback(url=thumb, fallback='icon-default.png')))
 
     return oc
 

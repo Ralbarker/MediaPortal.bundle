@@ -152,7 +152,7 @@ def NormalizeURL(url):
 
     if 'mediaportal://add_schedule' in url:
         url = url.split('/')
-        return Encode(Request(ADD_SCHEDULE, {'channelId ': url[3], 'title': url[4], 'startTime': url[5], 'endTime': url[6], 'scheduleType': url[7]}))
+        return Encode(Request(ADD_SCHEDULE, {'channelId': url[3], 'title': url[4], 'startTime': url[5], 'endTime': url[6], 'scheduleType': url[7]}))
 
     if 'mediaportal://delete_schedule' in url:
         id = url.split('/')[-1]
