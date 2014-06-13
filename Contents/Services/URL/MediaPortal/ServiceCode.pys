@@ -19,7 +19,7 @@ STREAM_INIT         = 'http://%s/MPExtended/StreamingService/json/InitStream'
 STREAM_START        = 'http://%s/MPExtended/StreamingService/json/StartStream'
 STREAM_CLOSE        = 'http://%s/MPExtended/StreamingService/json/FinishStream'
 EXTRACT_IMAGE       = 'http://%s/MPExtended/StreamingService/stream/ExtractImage'
-LOGOS               = 'http://%s/MPExtended/StreamingService/stream/GetArtwork?mediatype=12&id=%s&artworktype=5&offset=0'
+GET_ARTWORK         = 'http://%s/MPExtended/StreamingService/stream/GetArtwork'
 
 def FormatDate(date, format=None):
 	ms = int(date[6:-7])
@@ -100,7 +100,7 @@ def GetData(type_id, item_id):
             data['summary'] = ''
 
         try:
-            data['duration'] = int(end - start)
+            data['duration'] = int(end - start) if end > start else 0
         except:
             data['duration'] = 0
 
@@ -160,6 +160,10 @@ def NormalizeURL(url):
 
     if 'mediaportal://close' in url:
         return Encode(Request(CLOSE))
+
+    if 'mediaportal://get_artwork' in url:
+        id = url.split('/')[-1]
+        return Encode(Request(GET_ARTWORK, {'mediatype': 12, 'id':id, 'artworktype':5, 'offset':0}, url_only=True))
 
     return url
 
