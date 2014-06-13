@@ -97,7 +97,7 @@ def GetSchedules():
 
     schedules = ServiceRequest('schedules')
     for schedule in schedules:
-        oc.add(DirectoryObject(key = Callback(DeleteSchedules, title=schedule['Title'], id=schedule['Id']), title=schedule['Title']))
+        oc.add(DirectoryObject(key = Callback(DeleteSchedules, title=schedule['Title'], id=schedule['Id']), title=schedule['Title'], thumb = Callback(GetThumb, id=schedule['Id'])))
 
     return oc
 
@@ -152,8 +152,8 @@ def PlayAndRecordMenu(id, title, start, end, index):
     if int(index) == 0:
         oc.add(URLService.MetadataObjectForURL('mediaportal://show/%s/%s' % ('12', id)))
 
-    oc.add(DirectoryObject(key = Callback(AddSchedule, id=id, title=title, start=start, end=end, type=0), title='Record ' + title + ' once'))
-    oc.add(DirectoryObject(key = Callback(AddSchedule, id=id, title=title, start=start, end=end, type=3), title='Record ' + title + ' every time'))
+    oc.add(DirectoryObject(key = Callback(AddSchedule, id=id, title=title, start=start, end=end, type=0), title='Record ' + title + ' once', thumb = Callback(GetThumb, id=id)))
+    oc.add(DirectoryObject(key = Callback(AddSchedule, id=id, title=title, start=start, end=end, type=3), title='Record ' + title + ' every time', thumb = Callback(GetThumb, id=id)))
     return oc
 
 @route('/video/mediaportal/deleteschedules')

@@ -215,7 +215,7 @@ def GetThumb(id):
 
 def PlayVideo(type, id, profile):
     try:
-        close   = CloseStreams()
+        close = CloseStreams()
 
         try:
             init = Request(STREAM_INIT, values = {"identifier": id, "itemId": id, "type": type})
