@@ -119,6 +119,7 @@ def GetChannels(title, id):
     channels = ServiceRequest('channels', id)
     for channel in channels:
         thumb = ServiceRequest('get_artwork', id, is_json=False)
+        Log.Debug(thumb)
         oc.add(DirectoryObject(
             key = Callback(GetEPGList, title=channel['Title'], id=channel['Id']),
             title=channel['Title'],
