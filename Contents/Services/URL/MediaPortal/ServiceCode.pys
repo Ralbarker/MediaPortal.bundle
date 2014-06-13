@@ -100,7 +100,7 @@ def GetData(type_id, item_id):
             data['summary'] = ''
 
         try:
-            data['duration'] = int(end - start)
+            data['duration'] = int(end - start) if end > start else 0
         except:
             data['duration'] = 0
 
