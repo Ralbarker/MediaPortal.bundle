@@ -6,7 +6,6 @@ ICON_DEFAULT    = 'icon-default.png'
 ICON_PREFS      = 'icon-prefs.png'
 
 ####################################################################################################
-
 def ServiceRequest(url, id=None, title=None, start=None, end=None, type=None, is_json=True):
     data = [url]
     if id:
@@ -120,7 +119,6 @@ def GetChannels(title, id):
     channels = ServiceRequest('channels', id)
     for channel in channels:
         thumb = ServiceRequest('get_artwork', id, is_json=False)
-        Log.Debug(thumb)
         oc.add(DirectoryObject(
             key = Callback(GetEPGList, title=channel['Title'], id=channel['Id']),
             title=channel['Title'],
