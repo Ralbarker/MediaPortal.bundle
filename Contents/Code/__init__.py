@@ -118,12 +118,10 @@ def GetChannels(title, id):
 
     channels = ServiceRequest('channels', id)
     for channel in channels:
-        thumb = ServiceRequest('get_artwork', id, is_json=False)
-        Log.Debug(thumb)
         oc.add(DirectoryObject(
             key = Callback(GetEPGList, title=channel['Title'], id=channel['Id']),
-            title=channel['Title'],
-            thumb=Resource.ContentsOfURLWithFallback(url=thumb, fallback='icon-default.png')))
+            title = channel['Title'],
+            thumb = Callback(GetThumb, id=channel['Id'])))
 
     return oc
 
@@ -171,4 +169,12 @@ def AddSchedule(id, title, start, end, type):
     ServiceRequest('add_schedule', id, title, FormatDate(start), FormatDate(end), type)
     return MessageContainer('Press OK to continue', 'Show Recorded')
 
+@route('/video/mediaportal/getthumb')
+def GetThumb(id):
+    try:
+        url = ServiceRequest('get_artwork', id, is_json=False)
+        data = HTTP.Request(url, cacheTime=CACHE_1MONTH).content
+        return DataObject(data, 'image/png')
+    except:
+        return Redirect(R(ICON_DEFAULT))
 ####################################################################################################
