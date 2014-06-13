@@ -136,7 +136,10 @@ def GetEPGList(title, id):
         for idx,channel in enumerate(channels):
             start = FormatDate(channel['StartTime'], '%I:%M %p')
             end = FormatDate(channel['EndTime'], '%I:%M %p')
-            oc.add(DirectoryObject(key = Callback(PlayAndRecordMenu, id=channel['ChannelId'], title=channel['Title'], start=channel['StartTime'], end=channel['EndTime'], index=idx), title=start + ' - ' + end + ' ' + channel['Title']))
+            oc.add(DirectoryObject(
+                key = Callback(PlayAndRecordMenu, id=channel['ChannelId'], title=channel['Title'], start=channel['StartTime'], end=channel['EndTime'], index=idx),
+                title = start + ' - ' + end + ' ' + channel['Title'],
+                thumb = Callback(GetThumb, id=id)))
     else:
         oc.add(URLService.MetadataObjectForURL('mediaportal://show/%s/%s' % ('12', id)))
 
@@ -162,12 +165,12 @@ def DeleteSchedules(title, id):
 @route('/video/mediaportal/deleteschedule')
 def DeleteSchedule(id):
     ServiceRequest('delete_schedule', id)
-    return MessageContainer('Press OK to continue', 'Item Deleted')
+    return ObjectContainer(header='Press OK to continue', message='Item Deleted')
 
 @route('/video/mediaportal/addschedule')
 def AddSchedule(id, title, start, end, type):
     ServiceRequest('add_schedule', id, title, FormatDate(start), FormatDate(end), type)
-    return MessageContainer('Press OK to continue', 'Show Recorded')
+    return ObjectContainer(header='Press OK to continue', message='Show Recorded')
 
 @route('/video/mediaportal/getthumb')
 def GetThumb(id):

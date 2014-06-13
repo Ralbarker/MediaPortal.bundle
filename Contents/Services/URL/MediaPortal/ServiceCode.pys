@@ -4,6 +4,7 @@ from time import sleep
 import re
 import datetime
 
+ICON_DEFAULT        = 'icon-default.png'
 STATUS              = 'http://%s/MPExtended/TVAccessService/json/GetServiceDescription'
 CHANNELS            = 'http://%s/MPExtended/TVAccessService/json/GetChannelsDetailed'
 CHANNELS_BY_ID      = 'http://%s/MPExtended/TVAccessService/json/GetChannelDetailedById'
@@ -176,7 +177,7 @@ def MetadataObjectForURL(url):
         if int(type_id) == 13:
             thumb = Request(EXTRACT_IMAGE, {'itemId': item_id, 'type': type_id}, url_only=True)
         else:
-            thumb = Resource.ContentsOfURLWithFallback(url='', fallback='icon-default.png')
+            thumb = Callback(GetThumb, id=item_id)
 
         return VideoClipObject(
             title     = data['title'],
@@ -196,13 +197,21 @@ def MediaObjectsForURL(url):
     if 'HTTP Live Streaming' in profile:
         return [
             MediaObject(
-                parts   = [PartObject(key=HTTPLiveStreamURL(Callback(PlayVideo, type=type_id, id=item_id, profile=profile)))]
+                parts = [PartObject(key=HTTPLiveStreamURL(Callback(PlayVideo, type=type_id, id=item_id, profile=profile)))]
             )
         ]
     else:
         return [MediaObject(
             parts = [PartObject(key=Callback(PlayVideo, type=type_id, id=item_id, profile=profile))]
         )]
+
+def GetThumb(id):
+    try:
+        url = Request(GET_ARTWORK, {'mediatype': 12, 'id':id, 'artworktype':5, 'offset':0}, url_only=True)
+        data = HTTP.Request(url, cacheTime=CACHE_1MONTH).content
+        return DataObject(data, 'image/png')
+    except:
+        return Redirect(R(ICON_DEFAULT))
 
 def PlayVideo(type, id, profile):
     try:
