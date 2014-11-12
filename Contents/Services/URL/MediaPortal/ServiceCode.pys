@@ -72,7 +72,7 @@ def GetData(type_id, item_id):
             data['title'] = req['Title']
 
         try:
-            data['summary'] = req['CurrentProgram']['Description'].strip(':- ')
+            data['summary'] = unicode(req['CurrentProgram']['Description'].strip(':- '), 'latin-1')
         except:
             data['summary'] = ''
 
@@ -96,7 +96,7 @@ def GetData(type_id, item_id):
             start = 0
 
         try:
-            data['summary'] = req['Description'].strip(':- ')
+            data['summary'] = unicode(req['Description'].strip(':- '), 'latin-1')
         except:
             data['summary'] = ''
 
